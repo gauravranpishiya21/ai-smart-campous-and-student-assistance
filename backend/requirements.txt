@@ -1,0 +1,20 @@
+# EduWeb Campus ERP — backend requirements
+# Install:  pip install -r backend/requirements.txt
+# (everything is pure-Python or has wheels; SQLite is built into the stdlib)
+
+Flask>=3.1
+Flask-CORS>=4.0
+Flask-SocketIO>=5.3
+Flask-Mail>=0.9.1
+PyJWT>=2.8
+Werkzeug>=3.0
+python-dotenv>=1.0
+SQLAlchemy>=2.0
+numpy>=1.26
+scikit-learn>=1.3
+openpyxl>=3.1.5
+reportlab>=4.2
+simple-websocket>=0.10
+
+# tests
+pytest>=8.2

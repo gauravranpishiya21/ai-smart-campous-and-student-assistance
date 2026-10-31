@@ -54,7 +54,7 @@ window.sendAIChatMessage = async () => {
   try {
     const r = await api('/ai/chat', { body: { message: text, history: aiHistory } });
     aiHistory.push({ role: 'user', content: text }, { role: 'assistant', content: r.reply });
-    typing.remove(); aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${r.engine === 'claude' ? 'Claude' : 'Offline engine'}</p>`);
+    typing.remove(); aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${(r.engine === 'gemini' || r.engine === 'claude') ? 'Gemini 1.5 Flash' : 'Offline engine'}</p>`);
   } catch (e) { typing.remove(); aiBubble('assistant', esc(e.message)); }
 };
 L['ai-assistant'] = () => {
@@ -70,7 +70,7 @@ window.solveDoubt = async () => {
   const btn = sel('solveDoubtBtn'), old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Thinking...';
   try {
     const r = await api('/ai/doubt', { body: { subject: val('doubtSubject'), text: val('doubtText') } });
-    sel('doubtExplanation').innerHTML = md(r.explanation) + `<p class="text-[10px] text-gray-400 mt-3">Source: ${r.source === 'claude' ? 'Claude' : 'built-in knowledge base'}</p>`;
+    sel('doubtExplanation').innerHTML = md(r.explanation) + `<p class="text-[10px] text-gray-400 mt-3">Source: ${(r.source === 'gemini' || r.source === 'claude') ? 'Google Gemini' : 'built-in knowledge base'}</p>`;
     sel('doubtNotes').innerHTML = (r.notes || []).map((n) => `<li class="text-sm mb-1 list-disc ml-4">${esc(n)}</li>`).join('');
     sel('doubtTopics').innerHTML = (r.topics || []).map((t) => `<span class="inline-block text-xs font-bold px-3 py-1 m-1 rounded-full bg-indigo-50 text-indigo-700">${esc(t)}</span>`).join('');
     sel('doubtResponse').classList.remove('hidden');
@@ -611,7 +611,7 @@ window.learningGoBack = () => learnShow(Math.max(0, learnState.level - 1));
 const jobInfo = { attendanceGuardian: ['fa-user-clock', 'Warns students below the 75% rule'], feeReminder: ['fa-indian-rupee-sign', 'Sends fee-due reminders'], examCountdown: ['fa-hourglass-half', 'Exam countdown alerts'], riskScan: ['fa-triangle-exclamation', 'Flags backlog-risk students for mentoring'], ticketTriage: ['fa-route', 'Classifies and routes helpdesk tickets'], noticeDigest: ['fa-wand-magic-sparkles', 'Summarises notices with AI'], leaveAutoReview: ['fa-file-signature', 'Auto-decides leave requests'], wellnessWatch: ['fa-heart-pulse', 'Detects sustained stress or low sleep'], deadlineNudge: ['fa-flag-checkered', 'Project milestone reminders'], xpRewards: ['fa-trophy', 'Rewards attendance streaks'] };
 window.loadAutomation = L.automation = async () => {
   const d = await api('/automation/log');
-  const b = sel('aiEngineBadge'); b.textContent = d.llm ? 'Engine: Claude + analytics' : 'Engine: offline analytics'; b.className = 'text-xs font-bold px-3 py-1.5 rounded-full ' + (d.llm ? tone.green : tone.amber);
+  const b = sel('aiEngineBadge'); b.textContent = d.llm ? 'Engine: Gemini + analytics' : 'Engine: offline analytics'; b.className = 'text-xs font-bold px-3 py-1.5 rounded-full ' + (d.llm ? tone.green : tone.amber);
   sel('automationJobs').innerHTML = d.jobs.map((j) => `<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50"><i class="fas ${jobInfo[j]?.[0] || 'fa-gear'} text-indigo-500 w-5"></i><div class="flex-1"><p class="font-bold text-xs">${j}</p><p class="text-[11px] text-gray-400">${esc(jobInfo[j]?.[1] || '')}</p></div><button class="text-[11px] font-bold text-indigo-600" onclick="runAutomation('${j}')">Run</button></div>`).join('');
   sel('automationLog').innerHTML = d.log.map((l) => `<div class="p-3 text-sm flex gap-3"><span class="text-[10px] font-black text-indigo-600 w-32 shrink-0">${esc(l.job)}</span><span class="flex-1 ${/ERROR/.test(l.detail) ? 'text-rose-600' : ''}">${esc(l.detail)}</span><span class="text-[10px] text-gray-400">${esc(l.created_at)}</span></div>`).join('') || empty('No runs yet.');
 };

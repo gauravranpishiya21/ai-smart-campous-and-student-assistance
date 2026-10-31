@@ -179,7 +179,7 @@ async function boot() {
   }
   const g = $('gamificationStatus'); g.classList.remove('hidden');
   $('studentLevel').textContent = me.level; $('studentXP').textContent = me.xp; $('xpBar').style.width = me.progress + '%';
-  try { if (typeof io !== 'undefined' && !socket) { socket = io(); socket.on('chat:message', onChatSocket); } } catch { /* offline ok */ }
+  try { if (typeof io !== 'undefined' && !socket) { socket = io({ auth: { token: token() } }); socket.on('chat:message', onChatSocket); } } catch { /* offline ok */ }
   startClock();
   const start = (location.hash || '#dashboard').slice(1);
   showSection($(start) ? start : 'dashboard');

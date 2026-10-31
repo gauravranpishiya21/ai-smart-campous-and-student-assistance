@@ -1,18 +1,124 @@
-// AI engine: analytics models (always on, offline) + optional Claude LLM for conversational features.
+// AI engine: analytics models (always on, offline) + Google Gemini LLM for conversational features.
 const { db, rec } = require('./db');
 
-// ---------- LLM (optional) ----------
+// ---------- LLM (Google Gemini API) ----------
 let client = null;
-function llmAvailable() { return !!process.env.ANTHROPIC_API_KEY; }
+let customClient = null; // for testing and mock injection
+
+// In-memory rate limiter: max 20 calls/min to prevent quota exhaustion
+const rateLimiter = {
+  windowMs: 60 * 1000,
+  maxPerWindow: 20,
+  timestamps: [],
+  check() {
+    const now = Date.now();
+    this.timestamps = this.timestamps.filter((t) => now - t < this.windowMs);
+    if (this.timestamps.length >= this.maxPerWindow) return false;
+    this.timestamps.push(now);
+    return true;
+  },
+  reset() {
+    this.timestamps = [];
+  }
+};
+
+// Response deduplication cache (30 seconds TTL)
+const aiCache = new Map();
+const CACHE_TTL_MS = 30 * 1000;
+
+function getCache(key) {
+  const item = aiCache.get(key);
+  if (!item) return null;
+  if (Date.now() - item.time > CACHE_TTL_MS) {
+    aiCache.delete(key);
+    return null;
+  }
+  return item.data;
+}
+
+function setCache(key, data) {
+  if (aiCache.size > 100) {
+    const oldestKey = aiCache.keys().next().value;
+    aiCache.delete(oldestKey);
+  }
+  aiCache.set(key, { time: Date.now(), data });
+}
+
+function llmAvailable() {
+  return Boolean(process.env.GEMINI_API_KEY || customClient);
+}
+
+function getGeminiModel() {
+  return process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+}
+
+function setTestClient(mockClient) {
+  customClient = mockClient;
+  client = mockClient;
+}
+
 async function llm(system, messages, { maxTokens = 700 } = {}) {
   if (!llmAvailable()) return null;
+
+  // Rate limiting guard
+  if (!rateLimiter.check()) {
+    console.warn('[ai] Gemini rate limit reached (max 20 req/min). Using offline fallback.');
+    return null;
+  }
+
+  // Deduplication cache check
+  const cacheKey = JSON.stringify({ system, messages, maxTokens });
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+
   try {
-    if (!client) { const Anthropic = require('@anthropic-ai/sdk'); client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
-    const res = await client.messages.create({
-      model: process.env.CLAUDE_MODEL || 'claude-sonnet-5-5', max_tokens: maxTokens, system, messages,
-    }, { timeout: 25000 });
-    return res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || null;
-  } catch (e) { console.warn('[ai] LLM unavailable, using offline engine:', e.message); return null; }
+    let aiClient = customClient;
+    if (!aiClient) {
+      if (!client) {
+        const { GoogleGenAI } = require('@google/genai');
+        client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      }
+      aiClient = client;
+    }
+
+    const modelName = getGeminiModel();
+
+    // Map messages to Gemini Content schema (roles: 'user' and 'model')
+    const contents = (messages || []).map((m) => ({
+      role: (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
+      parts: [{ text: String(m.content || '') }]
+    }));
+
+    const response = await aiClient.models.generateContent({
+      model: modelName,
+      contents,
+      config: {
+        systemInstruction: system || undefined,
+        maxOutputTokens: maxTokens,
+        temperature: 0.7,
+        abortSignal: AbortSignal.timeout(20000)
+      }
+    });
+
+    const text = response?.text ? response.text.trim() : null;
+    if (text) {
+      setCache(cacheKey, text);
+      return text;
+    }
+    return null;
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (/RESOURCE_EXHAUSTED|429|quota/i.test(msg)) {
+      console.warn('[ai] Gemini quota exhausted or rate limited. Using offline engine:', msg);
+    } else if (/timeout|aborted/i.test(msg)) {
+      console.warn('[ai] Gemini API request timed out (20s limit). Using offline engine.');
+    } else if (/API_KEY_INVALID|invalid.*api.*key|unauthenticated/i.test(msg)) {
+      console.warn('[ai] Gemini API key invalid. Using offline engine:', msg);
+    } else {
+      console.warn('[ai] Gemini API error, using offline engine:', msg);
+    }
+    return null;
+  }
 }
 
 // ---------- grading ----------
@@ -272,7 +378,7 @@ function doubtLocal(subject, text) {
   for (const e of KB) { const sc = e.k.filter((k) => q.includes(k)).length; if (sc > bs) { bs = sc; best = e; } }
   if (best) return { explanation: `**${best.t}**\n\n${best.e}`, notes: best.n, topics: best.r, source: 'offline-kb' };
   return {
-    explanation: `Let's break your ${subject} doubt into steps:\n\n1. Restate the question in your own words and note what is given and what is asked.\n2. Identify the core concept or formula involved.\n3. Work a tiny example by hand before generalising.\n4. Check edge cases and units.\n\nFor a precise explanation, add the exact topic name (e.g. "deadlock", "normalization", "eigenvalues") or enable the Claude API key on the server for open-ended answers.`,
+    explanation: `Let's break your ${subject} doubt into steps:\n\n1. Restate the question in your own words and note what is given and what is asked.\n2. Identify the core concept or formula involved.\n3. Work a tiny example by hand before generalising.\n4. Check edge cases and units.\n\nFor a precise explanation, add the exact topic name (e.g. "deadlock", "normalization", "eigenvalues") or enable the Google Gemini API key on the server for open-ended answers.`,
     notes: ['Write down the givens and the unknown', 'Match the problem to a known concept', 'Verify with a small example'], topics: [subject + ' fundamentals', 'Previous year questions', 'Worked examples'], source: 'offline-generic' };
 }
 async function doubtSolve(subject, text) {
@@ -280,8 +386,8 @@ async function doubtSolve(subject, text) {
     'You are a patient university tutor. Answer the student doubt clearly and accurately for an engineering undergraduate. Respond ONLY with JSON: {"explanation": string (use short paragraphs, may use **bold**), "notes": [3-5 short key points], "topics": [3 related topics]}.',
     [{ role: 'user', content: `Subject: ${subject}\nDoubt: ${text}` }], { maxTokens: 900 });
   if (out) {
-    try { const j = JSON.parse(out.replace(/^```json|```$/gm, '').trim()); if (j.explanation) return { ...j, source: 'claude' }; } catch { /* fall through */ }
-    return { explanation: out, notes: [], topics: [], source: 'claude' };
+    try { const j = JSON.parse(out.replace(/^```json|```$/gm, '').trim()); if (j.explanation) return { ...j, source: 'gemini' }; } catch { /* fall through */ }
+    return { explanation: out, notes: [], topics: [], source: 'gemini' };
   }
   return doubtLocal(subject, text);
 }
@@ -349,7 +455,7 @@ async function chat(userId, history, msg) {
   const out = await llm(
     `You are the AI Campus Advisor of a university's Smart Campus system. Be concise, warm and practical (max ~120 words). Use ONLY the student's data below for personal facts; never invent numbers. For distress, recommend counselling and Tele-MANAS 14416.\nSTUDENT DATA: ${JSON.stringify(ctx)}`,
     [...(history || []).slice(-8).map((h) => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: String(h.content).slice(0, 1000) })), { role: 'user', content: msg }]);
-  return { reply: out || chatLocal(userId, msg), engine: out ? 'claude' : 'offline' };
+  return { reply: out || chatLocal(userId, msg), engine: out ? 'gemini' : 'offline' };
 }
 
 async function plannerChat(userId, history, msg) {
@@ -469,5 +575,5 @@ Keep your tone warm, encouraging, and actionable (max 150 words).`,
   };
 }
 
-module.exports = { llmAvailable, grade, snapshot, forecast, bunkPlan, risk, recordedCgpa, predictCgpa, recommendations, studyPlan, examAdvice,
+module.exports = { llmAvailable, getGeminiModel, setTestClient, rateLimiter, llm, grade, snapshot, forecast, bunkPlan, risk, recordedCgpa, predictCgpa, recommendations, studyPlan, examAdvice,
   leaveDecision, classifyTicket, summarizeNotice, atsAnalyze, doubtSolve, chat, plannerChat, nextClass, r1 };

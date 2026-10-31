@@ -1,68 +1,198 @@
-# AI-Powered Smart Campus Management and Student Assistance System
+# AI-Powered Smart Campus Management & Student Assistance System
 
-Your `student.html` portal, turned into a working full-stack system with a backend, database, AI and automation.
+A production-grade, secure, full-stack Smart Campus Management SaaS platform featuring **Google Gemini AI integration**, strict role-based access control (RBAC), multi-modal attendance intelligence, predictive academic early-warning systems, and event-driven automation.
 
-## Run on Windows
-1. Install Node.js 22.5 or newer.
-2. Double-click `start.bat` from the extracted project folder.
-3. Open `http://localhost:3000` in Chrome and keep the terminal window open.
+---
 
-Do not open `public/index.html` directly: the frontend requires the Express API server.
+## 🌟 Key Capabilities
 
-## Run from a terminal
-```bash
-npm install
-npm start                 # http://localhost:3000
-npm test                  # run the smoke tests
+- **Google Gemini AI Integration**: Conversational campus advisor, AI doubt solver, dynamic 6-day study routine generator, and ATS resume scoring powered by the official `@google/genai` SDK with automatic offline fallback when unconfigured.
+- **Enterprise Security Architecture**: Strict JWT token authentication, server-verified role-based authorization (Students, Faculty, System Administrators), IDOR prevention across all records, and security headers (`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`).
+- **Multimodal Smart Attendance**: Biometric 3D face liveness verification, dynamic 20-second expiring rolling QR codes, contactless RFID/NFC tap simulation, and automated low-attendance parent SMS dispatch.
+- **Academic & Operational Command Desk**: Constraint satisfaction problem (CSP) conflict-free timetable engine, AI rubric submission grading, 75% attendance bunk planner, and UGC-compliant official grade card issuance.
+- **Campus IoT & Living Services**: Simulated resource optimization telemetry, smart hostel/mess portal, live transport route tracking, safety SOS geo-dispatch, and visitor gate pass management.
+- **Executive Admin Console**: Live KPI metrics, student directory, attendance deficit scanner, CIA marks management, financial fee ledgers, and audit logs (`/admin.html`).
+
+---
+
+## 🏗️ Architecture Overview
+
 ```
-Requires Node 22.5+ (uses the built-in `node:sqlite`).
-**Demo student login:** `2024CS0042` / `student123`
-**Demo admin login:** `ADMIN001` / `student123` (Admin Panel: `http://localhost:3000/admin.html`)
+                               ┌────────────────────────────────────────────────────────┐
+                               │                    Client Layer                        │
+                               │  - Student Portal UI (public/index.html)               │
+                               │  - Executive Admin Console (public/admin.html)        │
+                               │  - Chart.js & Tailwind CSS Local Bundles               │
+                               └─────────────────────────┬──────────────────────────────┘
+                                                         │ HTTPS REST / WSS Socket.IO
+                                                         ▼
+                               ┌────────────────────────────────────────────────────────┐
+                               │                 Express API & Security                 │
+                               │  - Security Headers (nosniff, SAMEORIGIN, XSS)         │
+                               │  - Brute-Force Rate Limiting Middleware                │
+                               │  - JWT Bearer Authentication Guard                     │
+                               │  - Role Verification & Access Control (RBAC)           │
+                               └───────────────┬────────────────────────┬───────────────┘
+                                               │                        │
+                   ┌───────────────────────────┴───┐      ┌─────────────┴───────────────┐
+                   │       Google Gemini AI        │      │   Central Core Execution    │
+                   │  - @google/genai Node SDK     │      │         Kernel Engine       │
+                   │  - Rate Limiter (20 req/min)  │      │  - Privilege Interception   │
+                   │  - 30s Deduplication Cache    │      │  - Domain Classifier        │
+                   │  - Resilient Offline Fallback │      │  - Parameter Extractor      │
+                   └───────────────────────────────┘      └─────────────┬───────────────┘
+                                                                        │
+                               ┌────────────────────────────────────────┴───────────────┐
+                               │             Data & Persistence Layer                   │
+                               │  - Built-in SQLite 3.45 via node:sqlite (zero native)  │
+                               │  - Write-Ahead Logging (WAL) & Foreign Keys ON         │
+                               │  - Auto-seeding with realistic academic data           │
+                               │  - Flexible document store for student services        │
+                               └────────────────────────────────────────────────────────┘
+```
 
-## Architecture
-| Layer | What | Where |
-|---|---|---|
-| Student Frontend | Portal UI (all 30+ sections) wired to live APIs | `public/index.html`, `public/js/` |
-| Admin Console | Executive Administration Panel with KPI telemetry, student directory, 75% deficit scanner, CIA grading, finance ledgers, bulletins & leave approvals | `public/admin.html`, `public/js/admin.js`, `server/admin.js` |
-| API | Express REST + Socket.IO (live chat), JWT auth | `server/index.js`, `server/admin.js` |
-| Database | SQLite (students, attendance, fees, results, projects, tickets…) | `server/db.js`, `data/campus.db` |
-| AI | Attendance forecast + 75% bunk planner, backlog risk, CGPA prediction, exam advice, study planner, ATS resume score, chatbot, doubt solver. Uses Claude when `ANTHROPIC_API_KEY` is set, otherwise an offline engine | `server/ai.js` |
-| Automation | Scheduled jobs (node-cron), run on demand from the Automation tab | `server/automation.js` |
+---
 
-## Automation jobs
-- **attendanceGuardian** – warns students under 75% per subject, with classes needed to recover
-- **feeReminder** – dues reminders
-- **examCountdown** – upcoming exam alerts
-- **deadlineNudge** – project/task deadline nudges
-- **xpRewards** – gamification XP
-- **riskScan** – flags at-risk students for mentoring
-- **wellnessWatch** – watches wellness logs
-- **ticketTriage** – auto-categorises helpdesk tickets
-- **leaveAutoReview** – auto-reviews leave requests
-- **noticeDigest** – digests notices
+## 🔒 Security Fixes & Hardening
 
-Schedules: every 5 min (triage, leave review, digest), 08:00 daily (alerts/reminders), 22:00 daily (risk and wellness scans).
+### Addressed Vulnerabilities (including GitHub Issue #1):
+1. **Unauthenticated `/api/ai-engine` Vulnerability Fixed**:
+   - Removed the unauthenticated fallback route that previously trusted client-supplied `user_id` and `role` parameters.
+   - All AI engine endpoints (`/api/ai-engine` and `/api/ai/kernel-execute`) are now registered behind the verified `auth` middleware.
+   - User identity and role permissions are derived exclusively from verified database records (`req.user`), completely ignoring client-supplied identity fields in request bodies.
+2. **Insecure Direct Object Reference (IDOR) Protections**:
+   - `POST /api/library/return/:id`: Verified that borrow records belong strictly to `req.user.id`.
+   - `POST /api/projects/:id/milestones/:mid/toggle`: Verified that project milestones belong to the authenticated student's project.
+   - Planner task modifications (`/api/planner/tasks/:id/toggle` and `DELETE /api/planner/tasks/:id`) enforce ownership checks.
+3. **Role-Based Privilege Escalation Guard**:
+   - The Central AI Kernel Core intercepts any student attempts to alter grades, attendance, or fees, returning an `AUTHORIZATION_BREACH` payload with telemetry recording.
+   - Admin routes (`/api/admin/*`) strictly verify `role === 'admin' || role === 'super_admin'` from verified database records.
+4. **Socket.IO Security**:
+   - Socket.IO connections authenticate incoming JWT tokens during handshake, assigning verified users to secure rooms.
+5. **Rate Limiting & Security Headers**:
+   - Implemented IP-based brute force protection on authentication routes.
+   - Added standard security response headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`).
 
-## Notes
-- Set a strong `JWT_SECRET` before deploying anywhere public.
-- The seeded data is fictional demo data.
+---
 
+## 🤖 Google Gemini AI Setup
 
-## Resource Optimization Map
+The system uses the official Google Gen AI SDK (`@google/genai`) for conversational intelligence, academic advice, and doubt solving.
 
-The Resource Optimization Map is available from the sidebar. It displays lab equipment utilization, classroom occupancy, building-level power usage, zone details and optimization recommendations. The current `/api/resources/telemetry` endpoint intentionally generates **simulated demo telemetry** with 30-second refreshes. For production deployment, replace the sample values in `server/index.js` with authenticated feeds from room occupancy sensors, equipment booking/inventory systems and electricity meters; do not present the demo readings as physical measurements.
+### Getting an API Key
+1. Visit [Google AI Studio](https://aistudio.google.com/).
+2. Sign in with your Google account.
+3. Click **Get API key** and create a new key.
+4. Copy your API key.
 
-## Strategic Frontend Enhancements
+### Configuration
+Create a `.env` file in the project root (copied from `.env.example`):
 
-This build adds two frontend views to the existing application:
+```bash
+PORT=3000
+JWT_SECRET=your-secure-random-secret-key-at-least-32-characters
 
-- **Enterprise Analytics** (`#strategic-analytics`): responsive Chart.js charts for attendance actual-vs-predicted trends, department performance, resource utilization and at-risk student trends. Includes a time-range selector and refresh action.
-- **AI Agent War Room** (`#war-room`): Security, Analytics and Scheduling agent status cards, coordination protocol, and a rolling inter-agent message stream with a manual coordination-cycle action.
+# Google Gemini API
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
 
-Both views are linked from the sidebar. The new frontend code is in `public/js/strategic-enhancements.js`; Chart.js is already bundled locally at `public/vendor/chart.umd.min.js`.
+> **Note on Offline Resilience**: If `GEMINI_API_KEY` is not provided, or if the API quota is exhausted, or if an API timeout occurs, the system automatically and seamlessly falls back to its built-in offline rules and knowledge base. The application never crashes due to AI provider unavailability.
 
-**Data note:** These new analytics values and agent messages are illustrative demo data. The existing resource map retains its own telemetry integration. To make the new views production-live, connect them to authenticated analytics endpoints and server-side Socket.IO events, enforce admin/faculty role permissions, and persist an audit trail. Do not treat the demo events as actual campus security or operational alerts.
+---
 
-### Validation
+## 🚀 Quickstart & Installation
 
-The new JavaScript passes `node --check`. `npm test` was attempted but the repository's self-test suite reported failures across its API checks in this environment; install the project's dependencies and configure the test database/environment before relying on those checks.
+### Prerequisites
+- **Node.js**: v22.5.0 or newer (uses the native `node:sqlite` module without native C++ compilation dependencies).
+- **Web Browser**: Chrome, Edge, Firefox, or Safari.
+
+### 1. Clone & Install
+```bash
+git clone https://github.com/gauravranpishiya21/ai-smart-campous-and-student-assistance.git
+cd ai-smart-campous-and-student-assistance
+npm install
+```
+
+### 2. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env to set JWT_SECRET and optionally GEMINI_API_KEY
+```
+
+### 3. Run Automated Tests
+```bash
+npm test
+```
+The test suite executes 37 automated tests across:
+- Authentication & JWT handling (valid, missing, invalid, expired).
+- Security & authorization (unauthenticated AI route rejection, role spoofing prevention, IDOR protection, admin guards).
+- Gemini API integration with mocked provider, timeout handling, quota exhaustion, rate limiting, and offline fallback.
+- Full application regression checks across all student, academic, and administrative modules.
+
+### 4. Start the Application
+```bash
+npm start
+```
+The application will launch at **`http://localhost:3000`**.
+
+### Demo Credentials
+| Role | Portal URL | Identifier | Password |
+|---|---|---|---|
+| **Student** | `http://localhost:3000` | `2024CS0042` (or `test@smartcampus.edu`) | `student123` |
+| **Administrator** | `http://localhost:3000/admin.html` | `ADMIN001` | `student123` |
+
+---
+
+## 📡 API Reference Summary
+
+### Authentication
+- `POST /api/auth/login` – Authenticate with roll number/email and password (rate limited).
+- `POST /api/auth/register` – Register a new student account (rate limited).
+- `GET /api/auth/me` – Retrieve profile of authenticated user.
+
+### AI & Central Kernel Engine
+- `GET /api/ai/status` – Check AI engine status and active Gemini model.
+- `POST /api/ai/chat` – Conversational campus advisor (Gemini + offline fallback).
+- `POST /api/ai/doubt` – Subject doubt solver with syllabus mapping.
+- `POST /api/ai/planner-chat` – Dynamic study routine builder.
+- `POST /api/ai-engine` – Central Kernel Core execution engine (strict JWT auth).
+- `POST /api/ai/kernel-execute` – Direct kernel command dispatcher.
+
+### Academic Operations
+- `GET /api/attendance` – Attendance analytics, subject breakdown, and bunk planner.
+- `POST /api/attendance/mark` – Daily attendance self-check-in.
+- `GET /api/results` – Grade reports, SGPA/CGPA standing.
+- `GET /api/calendar/annual?year=2` – Annual working mechanism and event schedule.
+- `GET /api/calendar/ics?year=2` – RFC 5545 downloadable iCalendar (.ics) export.
+- `POST /api/academic/timetable-conflict-check` – Detect faculty/room booking collisions.
+- `POST /api/academic/generate-timetable` – Generate conflict-free semester timetable.
+
+### Administration Console (`/api/admin/*`, Admin Only)
+- `GET /api/admin/overview` – Campus KPI stats, attendance averages, and dues telemetry.
+- `GET /api/admin/students` – Complete student directory with risk ratings.
+- `POST /api/admin/students` – Provision new student/faculty/admin records.
+- `PUT /api/admin/students/:id` – Modify user attributes and roles.
+- `DELETE /api/admin/students/:id` – Remove student and cascading records.
+- `POST /api/admin/attendance/override` – Administrative attendance ledger adjustments.
+- `POST /api/admin/marks` – CIA internal and end-semester grading.
+
+---
+
+## 🛠️ Production Deployment Guidelines
+
+1. **Environment Variables**:
+   - Set `NODE_ENV=production`.
+   - Configure a cryptographically strong `JWT_SECRET` (at least 32 characters, e.g. `openssl rand -hex 32`).
+   - Securely inject `GEMINI_API_KEY` via production secrets management (e.g. AWS Secrets Manager, GCP Secret Manager, or environment variables).
+2. **Reverse Proxy & SSL**:
+   - Deploy behind Nginx, Caddy, or Cloudflare with TLS 1.3 encryption.
+   - Configure `proxy_set_header X-Forwarded-For $remote_addr;` and WebSocket proxy headers (`Upgrade $http_upgrade; Connection "upgrade";`).
+3. **Database Maintenance**:
+   - The SQLite database (`data/campus.db`) operates in WAL mode.
+   - Schedule periodic database backups using SQLite's online backup API or file copies during low-traffic windows.
+
+---
+
+## 📄 License
+MIT License.

@@ -87,7 +87,7 @@ router.get('/overview', h(async (req, res) => {
       inProgressTickets,
       resolvedTickets,
       pendingLeaves,
-      aiModel: ai.llmAvailable() ? (process.env.CLAUDE_MODEL || 'Claude 3.5 Sonnet') : 'Offline AI Engine',
+      aiModel: ai.llmAvailable() ? (process.env.GEMINI_MODEL || 'Gemini 1.5 Flash') : 'Offline AI Engine',
     },
     depts: deptCounts,
     recentAutomation: recentLogs

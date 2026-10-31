@@ -1,0 +1,19 @@
+SMART CAMPUS - HOW TO OPEN THE WEBSITE
+
+1. Extract the complete ZIP folder.
+2. Install Node.js version 22.5 or newer: https://nodejs.org/
+3. Double-click start.bat (Windows).
+4. Wait until the terminal says: Smart Campus AI running at http://localhost:3000
+5. Open this address in Chrome: http://localhost:3000
+6. Keep the black terminal window open while using the site.
+
+DEMO LOGIN
+Student: 2024CS0042 / student123
+Admin:   ADMIN001 / student123
+
+IMPORTANT
+Do not double-click public/index.html. This application needs its Node.js server
+for login, database and API features. Use http://localhost:3000 instead.
+
+If start.bat reports a Node.js version error, install Node.js 22.5 or newer
+and run start.bat again.

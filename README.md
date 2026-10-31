@@ -1,95 +1,68 @@
-# Smart Education ERP — Smart Campus Student Management System
+# AI-Powered Smart Campus Management and Student Assistance System
 
-An end-to-end college administration system: a Flask/SQLite REST API with role-based
-access, a Socket.IO realtime layer, and a static multi-portal frontend built with
-Tailwind, Font Awesome and Chart.js.
+Your `student.html` portal, turned into a working full-stack system with a backend, database, AI and automation.
 
-## Portals & Roles
+## Run on Windows
+1. Install Node.js 22.5 or newer.
+2. Double-click `start.bat` from the extracted project folder.
+3. Open `http://localhost:3000` in Chrome and keep the terminal window open.
 
-| Role | Portal | Capabilities |
-| --- | --- | --- |
-| Student | `student.html` | Academics, projects, fees & receipts, certificates & hall ticket, AI helpdesk, placements, library, campus services |
-| Faculty | `faculty.html` | Attendance, grading, project guidance, weekly observation reports |
-| Admin / Super Admin / Principal | `admin.html` | Institution, departments, users, payments, reports, advanced analytics, project analytics |
-| HOD / Accounts / Librarian / Warden | `staff.html` | Role-scoped grievance queue, certificate & revaluation review (HOD), fees/finance desk (Accounts), AI analytics (HOD) |
+Do not open `public/index.html` directly: the frontend requires the Express API server.
 
-### Default logins (demo)
-
-| Role | Mobile | Password |
-| --- | --- | --- |
-| Student | `9999999999` | `password123` |
-| Student (Medical) | `8888888888` | `password123` |
-| Faculty | `9876543210` | `password123` |
-| Admin | `1234567890` | `admin123` |
-| HOD / Accounts / Librarian / Warden | `7020001002` / `7020001001` / `7020001004` / `7020001003` | `staff123` |
-
-New staff accounts (principal, HOD, accounts, librarian, warden, super admin) are created
-by an admin via `POST /api/staff/create` — there is **no public self-registration** for
-staff. `/register` accepts students only.
-
-## Feature highlights
-
-- **Role-based access control** — JWT auth with role-checked guarded endpoints and
-  role-specific portals (`_is_management` + per-route `require_auth`).
-- **Finance suite** — fee structures, per-student dues with receipts, defaulter report,
-  scholarships.
-- **Certificates & exam documents** — bonafide / transfer certificate / QR ID card
-  request-and-issue workflow, hall tickets, revaluation requests.
-- **AI operations** — grievance auto-classification and routing to the correct desk
-  with priority detection; natural-language analytics
-  (`POST /api/analytics/nl-query`) for attendance, dues, at-risk students, placements.
-- **Projects & observations** — student projects with milestones, progress, faculty
-  guides and discussion; weekly faculty observation reports with student-facing ratings.
-- **Realtime** — Socket.IO for attendance, dashboard and notification updates.
-
-## Getting started
-
-### Local (Windows)
-
-```bat
-cd backend
-python -m pip install -r requirements.txt
-python migrate.py      REM idempotent schema migrations on an existing DB
-python app.py          REM http://localhost:5000
-```
-
-Open the frontend from `frontend/index.html` in a browser (served by `http-server`,
-`python -m http.server 8000 -d frontend`, or use `start.bat`).
-
-### Docker
-
+## Run from a terminal
 ```bash
-docker compose up --build
-#  - API + Socket.IO on http://localhost:5000
-#  - Frontend on http://localhost:80  (nginx, proxies /api and /socket.io)
+npm install
+npm start                 # http://localhost:3000
+npm test                  # run the smoke tests
 ```
+Requires Node 22.5+ (uses the built-in `node:sqlite`).
+**Demo student login:** `2024CS0042` / `student123`
+**Demo admin login:** `ADMIN001` / `student123` (Admin Panel: `http://localhost:3000/admin.html`)
 
-## Project structure
+## Architecture
+| Layer | What | Where |
+|---|---|---|
+| Student Frontend | Portal UI (all 30+ sections) wired to live APIs | `public/index.html`, `public/js/` |
+| Admin Console | Executive Administration Panel with KPI telemetry, student directory, 75% deficit scanner, CIA grading, finance ledgers, bulletins & leave approvals | `public/admin.html`, `public/js/admin.js`, `server/admin.js` |
+| API | Express REST + Socket.IO (live chat), JWT auth | `server/index.js`, `server/admin.js` |
+| Database | SQLite (students, attendance, fees, results, projects, tickets…) | `server/db.js`, `data/campus.db` |
+| AI | Attendance forecast + 75% bunk planner, backlog risk, CGPA prediction, exam advice, study planner, ATS resume score, chatbot, doubt solver. Uses Claude when `ANTHROPIC_API_KEY` is set, otherwise an offline engine | `server/ai.js` |
+| Automation | Scheduled jobs (node-cron), run on demand from the Automation tab | `server/automation.js` |
 
-```
-backend/
-  app.py            Flask + Socket.IO entrypoint, core routes, bootstrap
-  config.py         JWT secret, DB config
-  db.py             SQLite + SQLAlchemy helpers
-  migrate.py        Idempotent schema runner
-  routes/
-    staff.py        Role support + staff management
-    finance.py      Fee structures, dues, defaulters, scholarships
-    certificates.py Document requests, hall tickets, revaluations
-    ai_ops.py       Grievances + NL analytics
-    projects.py     Student projects & milestones
-    observations.py Weekly observation reports
-  tests/            pytest suite
-frontend/
-  index.html login.html student.html faculty.html staff.html admin.html parent.html ...
-  js/               per-portal logic
-```
+## Automation jobs
+- **attendanceGuardian** – warns students under 75% per subject, with classes needed to recover
+- **feeReminder** – dues reminders
+- **examCountdown** – upcoming exam alerts
+- **deadlineNudge** – project/task deadline nudges
+- **xpRewards** – gamification XP
+- **riskScan** – flags at-risk students for mentoring
+- **wellnessWatch** – watches wellness logs
+- **ticketTriage** – auto-categorises helpdesk tickets
+- **leaveAutoReview** – auto-reviews leave requests
+- **noticeDigest** – digests notices
 
-See `docs/ER.md` for the entity-relationship map and `backend/API_DOCS.md` for API reference.
+Schedules: every 5 min (triage, leave review, digest), 08:00 daily (alerts/reminders), 22:00 daily (risk and wellness scans).
 
-## Security notes
+## Notes
+- Set a strong `JWT_SECRET` before deploying anywhere public.
+- The seeded data is fictional demo data.
 
-- JWT `SECRET_KEY` defaults to a development value in `config.py`; set the
-  `SECRET_KEY` environment variable in production.
-- Use HTTPS behind a reverse proxy in production; the bundled `nginx.conf` is a
-  starting point.
+
+## Resource Optimization Map
+
+The Resource Optimization Map is available from the sidebar. It displays lab equipment utilization, classroom occupancy, building-level power usage, zone details and optimization recommendations. The current `/api/resources/telemetry` endpoint intentionally generates **simulated demo telemetry** with 30-second refreshes. For production deployment, replace the sample values in `server/index.js` with authenticated feeds from room occupancy sensors, equipment booking/inventory systems and electricity meters; do not present the demo readings as physical measurements.
+
+## Strategic Frontend Enhancements
+
+This build adds two frontend views to the existing application:
+
+- **Enterprise Analytics** (`#strategic-analytics`): responsive Chart.js charts for attendance actual-vs-predicted trends, department performance, resource utilization and at-risk student trends. Includes a time-range selector and refresh action.
+- **AI Agent War Room** (`#war-room`): Security, Analytics and Scheduling agent status cards, coordination protocol, and a rolling inter-agent message stream with a manual coordination-cycle action.
+
+Both views are linked from the sidebar. The new frontend code is in `public/js/strategic-enhancements.js`; Chart.js is already bundled locally at `public/vendor/chart.umd.min.js`.
+
+**Data note:** These new analytics values and agent messages are illustrative demo data. The existing resource map retains its own telemetry integration. To make the new views production-live, connect them to authenticated analytics endpoints and server-side Socket.IO events, enforce admin/faculty role permissions, and persist an audit trail. Do not treat the demo events as actual campus security or operational alerts.
+
+### Validation
+
+The new JavaScript passes `node --check`. `npm test` was attempted but the repository's self-test suite reported failures across its API checks in this environment; install the project's dependencies and configure the test database/environment before relying on those checks.

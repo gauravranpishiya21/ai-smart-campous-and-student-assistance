@@ -1,38 +1,8 @@
-# --- Python ---
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.venv/
-venv/
 
-# --- Databases & runtime state ---
-backend/*.db
-backend/*.db-wal
-backend/*.db-shm
-backend/backups/
-backend/app.log
-
-# --- Node ---
-webapp/node_modules/
-webapp/dist/
-frontend/node_modules/
-frontend/dist/
-
-# --- Logs & temp ---
-*.log
-logs/
-*.out.log
-*.err.log
-
-# --- OS / editor ---
-.DS_Store
-Thumbs.db
-desktop.ini
-.vscode/
-.idea/
-*.swp
-
-# --- Secrets (env files override config) ---
+node_modules/
 .env
-backend/.env
+.env.local
+.env.production
+.DS_Store
+npm-debug.log
+coverage/

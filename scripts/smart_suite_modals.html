@@ -1,0 +1,382 @@
+<!-- SMART CAMPUS SUITE COMPREHENSIVE MODALS -->
+
+<!-- 1. EMERGENCY SOS MODAL -->
+<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-red-950/80 backdrop-blur-md hidden" id="emergencySosModal" onclick="if(event.target===this) window.closeEmergencySosModal()">
+  <div class="bg-slate-900 border-2 border-rose-500 text-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden p-6 relative">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-2xl font-bold animate-pulse">
+        <i class="fas fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <h3 class="text-xl font-black text-rose-400">Campus Emergency SOS</h3>
+        <p class="text-xs text-slate-300">Instant distress beacon to Campus Security &amp; Medical Centre</p>
+      </div>
+      <button class="ml-auto w-8 h-8 rounded-lg bg-white/10 text-slate-400 hover:text-white flex items-center justify-center" onclick="window.closeEmergencySosModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="space-y-3 text-xs">
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Your Current Location:</label>
+        <input type="text" id="sosLocationInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-medium focus:border-rose-500 focus:outline-none" value="Central Library Quad (Near Academic Block A)">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Emergency Nature / Assistance Required:</label>
+        <select id="sosReasonInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-medium focus:border-rose-500 focus:outline-none">
+          <option value="Medical Assistance / First Aid Needed">Medical Assistance / First Aid Needed</option>
+          <option value="Physical Safety / Harassment Concern">Physical Safety / Harassment Concern</option>
+          <option value="Fire Hazard / Electrical Short Circuit">Fire Hazard / Electrical Short Circuit</option>
+          <option value="Urgent Distress / Panic Help">Urgent Distress / Panic Help</option>
+        </select>
+      </div>
+      <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-300 space-y-1">
+        <p class="text-rose-400 font-bold flex items-center gap-1.5"><i class="fas fa-satellite-dish"></i> GPS Coordinates: 28.5450° N, 77.1920° E (Geofence Locked)</p>
+        <p>Security Quick Response Patrol Unit will reach your exact location in ~2-3 minutes.</p>
+      </div>
+      <div id="sosConfirmationBanner" class="hidden">
+        <div id="sosConfirmationDetails"></div>
+      </div>
+      <div class="pt-2 flex gap-3">
+        <button class="flex-1 py-3 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white rounded-xl font-black text-sm shadow-lg shadow-rose-950 transition flex items-center justify-center gap-2" id="sosDispatchBtn" onclick="window.confirmSosDispatch()">
+          <i class="fas fa-triangle-exclamation"></i> Broadcast Emergency SOS
+        </button>
+        <button class="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs" onclick="window.closeEmergencySosModal()">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. 17-SECTION PROJECT BLUEPRINT & REPORT MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md hidden" id="projectBlueprintModal" onclick="if(event.target===this) window.closeProjectBlueprintModal()">
+  <div class="bg-slate-900 border border-cyan-500/30 text-white rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden flex flex-col h-[92vh]">
+    <div class="p-4 sm:p-5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-cyan-600/30 border border-cyan-400/40 text-cyan-300 flex items-center justify-center text-lg">
+          <i class="fas fa-book-bookmark"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-base text-white">Project Technical Documentation &amp; Comprehensive Report</h3>
+          <p class="text-xs text-slate-400">17 Standard IEEE / University Syllabus Project Sections · Smart Campus AI</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold transition flex items-center gap-1.5" onclick="window.printProjectBlueprint()">
+          <i class="fas fa-print"></i> <span class="hidden sm:inline">Print / Export PDF</span>
+        </button>
+        <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center" onclick="window.closeProjectBlueprintModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <!-- Sidebar TOC -->
+      <div class="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/70 p-3 overflow-y-auto shrink-0">
+        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2 mb-2">17 Project Sections</p>
+        <ul class="space-y-1" id="blueprintTocList"></ul>
+      </div>
+      <!-- Section Content Area -->
+      <div class="flex-1 p-5 sm:p-7 overflow-y-auto bg-slate-900/60" id="blueprintContentArea">
+        <p class="text-slate-400 text-sm">Select a section from the table of contents to read the report.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. BIOMETRIC FACE ATTENDANCE MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="faceAttendanceModal" onclick="if(event.target===this) window.closeFaceAttendanceModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center"><i class="fas fa-camera"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Biometric Face Recognition</h3>
+          <p class="text-[11px] text-slate-400">3D Landmark Mesh &amp; Anti-Spoofing Liveness</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeFaceAttendanceModal()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Camera Stage Simulation -->
+    <div class="relative bg-slate-950 rounded-2xl h-56 flex items-center justify-center overflow-hidden border border-slate-800">
+      <div class="absolute inset-4 border-2 border-dashed border-cyan-400/40 rounded-full flex items-center justify-center">
+        <div class="w-24 h-32 rounded-full border border-indigo-400/50 flex items-center justify-center relative">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 absolute top-8 left-4 animate-ping"></span>
+          <span class="w-2 h-2 rounded-full bg-cyan-400 absolute top-8 right-4 animate-ping"></span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 absolute bottom-8"></span>
+        </div>
+      </div>
+      <!-- SVG Progress Ring -->
+      <div class="absolute right-4 bottom-4 flex items-center gap-2 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-700">
+        <svg class="w-6 h-6 transform -rotate-90">
+          <circle cx="12" cy="12" r="10" stroke="#334155" stroke-width="2.5" fill="none"/>
+          <circle id="faceConfidenceRing" cx="12" cy="12" r="10" stroke="#06b6d4" stroke-width="2.5" stroke-dasharray="62.8" stroke-dashoffset="62.8" fill="none" class="transition-all duration-700"/>
+        </svg>
+        <span class="text-xs font-mono font-bold text-cyan-300" id="faceConfidenceVal">--%</span>
+      </div>
+      <span class="absolute top-3 left-3 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">Liveness: PASS</span>
+      <span class="absolute top-3 right-3 px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-500/30">Geofence: Inside Campus</span>
+    </div>
+
+    <div id="faceScanFeedback" class="p-3 bg-slate-950 rounded-xl text-center text-xs text-slate-400">
+      Camera active. Align face inside the oval and click Verify Face.
+    </div>
+
+    <button class="w-full py-3 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white rounded-xl font-bold text-xs shadow-md transition flex items-center justify-center gap-2" onclick="window.executeFaceVerification()">
+      <i class="fas fa-expand"></i> Verify Biometrics &amp; Mark Attendance
+    </button>
+  </div>
+</div>
+
+<!-- 4. ROLLING DYNAMIC QR CODE MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="rollingQrModal" onclick="if(event.target===this) window.closeRollingQrModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden p-6 space-y-4 text-center">
+    <div class="flex items-center justify-between">
+      <h3 class="font-black text-sm text-white">Dynamic Rolling QR Code</h3>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeRollingQrModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="text-xs text-slate-400">Scan this time-expiring rolling QR code in <strong class="text-indigo-300" id="qrRoomName">Lecture Hall 204</strong> to mark attendance.</p>
+    
+    <!-- QR Stage Box -->
+    <div class="p-6 bg-white rounded-2xl inline-block shadow-inner">
+      <div class="w-44 h-44 bg-slate-950 rounded-xl p-3 flex flex-col items-center justify-center text-cyan-300 font-mono text-[9px] break-all border-4 border-indigo-500">
+        <i class="fas fa-qrcode text-5xl text-white mb-2"></i>
+        <span id="qrTokenString" class="text-slate-300">CAMPUS_QR_REFRESHING...</span>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
+      <span>Auto-refreshes in:</span>
+      <span class="text-cyan-400 font-mono text-sm" id="qrTimerCount">20s</span>
+    </div>
+
+    <button class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white rounded-xl font-bold text-xs transition" onclick="window.simulateScanRollingQr()">
+      <i class="fas fa-camera mr-1.5"></i> Simulate Phone Scan &amp; Submit
+    </button>
+  </div>
+</div>
+
+<!-- 5. ATTENDANCE ANALYTICS MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="attendanceAnalyticsModal" onclick="if(event.target===this) window.closeAttendanceAnalyticsModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center"><i class="fas fa-chart-pie"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Class &amp; Subject Attendance Analytics</h3>
+          <p class="text-[11px] text-slate-400">Class Cohort Benchmark, Bunk Margin &amp; Standing</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeAttendanceAnalyticsModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="attendanceAnalyticsBody" class="overflow-y-auto space-y-4 flex-1"></div>
+  </div>
+</div>
+
+<!-- 6. TIMETABLE CONFLICT MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="timetableConflictModal" onclick="if(event.target===this) window.closeTimetableConflictModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 text-cyan-300 flex items-center justify-center"><i class="fas fa-calendar-check"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">AI Timetable Conflict Detector &amp; Generator</h3>
+          <p class="text-[11px] text-slate-400">Constraint Satisfaction Solver (Zero Teacher &amp; Room Clashes)</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeTimetableConflictModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="conflictCheckOutput" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 7. ASSIGNMENTS & AI RUBRICS MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="assignmentsModal" onclick="if(event.target===this) window.closeAssignmentsModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center"><i class="fas fa-file-code"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Active Assignments &amp; AI Rubric Evaluator</h3>
+          <p class="text-[11px] text-slate-400">Automated Multi-Criteria Grading &amp; Instant Feedback</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeAssignmentsModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="assignmentsListContainer" class="overflow-y-auto space-y-4 flex-1"></div>
+  </div>
+</div>
+
+<!-- 8. OFFICIAL GRADE CARD MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="officialGradeCardModal" onclick="if(event.target===this) window.closeOfficialGradeCardModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[92vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <h3 class="font-black text-sm text-white">Official Consolidated Grade Transcript</h3>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeOfficialGradeCardModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="gradeCardContent" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 9. PERFORMANCE ML EARLY WARNING RADAR MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="earlyWarningRadarModal" onclick="if(event.target===this) window.closeEarlyWarningRadarModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[92vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-cyan-600/30 text-cyan-300 flex items-center justify-center"><i class="fas fa-radar"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Machine Learning Early-Warning Failure &amp; Dropout Radar</h3>
+          <p class="text-[11px] text-slate-400">Random Forest Ensemble · Measured Model Accuracy 94.2% · Latency 12ms</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeEarlyWarningRadarModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="earlyWarningRadarBody" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 10. HOSTEL & MESS MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="hostelMessModal" onclick="if(event.target===this) window.closeHostelMessModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-orange-600/30 text-orange-400 flex items-center justify-center"><i class="fas fa-utensils"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Hostel Living &amp; Daily Nutritional Mess Menu</h3>
+          <p class="text-[11px] text-slate-400">Daily 4-Meal Schedule with AI Sentiment Feedback</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeHostelMessModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="hostelMessContent" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 11. LIVE CAMPUS TRANSPORT MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="liveTransportModal" onclick="if(event.target===this) window.closeLiveTransportModal()">
+  <div class="bg-slate-900 border border-cyan-500/40 text-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-cyan-600/30 text-cyan-300 flex items-center justify-center"><i class="fas fa-bus"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Live Campus Shuttle Bus Telemetry</h3>
+          <p class="text-[11px] text-slate-400">Real-Time GPS Coordinates, Speeds, ETAs &amp; Seat Capacity</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeLiveTransportModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="liveTransportBody" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 12. RESOURCE BOOKING MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="resourceBookingModal" onclick="if(event.target===this) window.closeResourceBookingModal()">
+  <div class="bg-slate-900 border border-indigo-500/40 text-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-black text-sm text-white">Book Lab / Classroom Space</h3>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeResourceBookingModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-3 text-xs">
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Select Facility:</label>
+        <select id="resBookName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none">
+          <option value="Robotics &amp; Automation Lab">Robotics &amp; Automation Lab (Block B)</option>
+          <option value="High Performance GPU Computing Cluster">High Performance GPU Computing Cluster (IT 301)</option>
+          <option value="Advanced 3D Printing &amp; Prototyping Bay">Advanced 3D Printing &amp; Prototyping Bay</option>
+          <option value="Smart Seminar Hall 102">Smart Seminar Hall 102 (Main Block)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Date:</label>
+        <input type="date" id="resBookDate" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" value="2026-11-15">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Time Slot:</label>
+        <select id="resBookSlot" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none">
+          <option value="09:00 AM - 11:00 AM">09:00 AM - 11:00 AM</option>
+          <option value="11:30 AM - 01:30 PM">11:30 AM - 01:30 PM</option>
+          <option value="02:00 PM - 04:00 PM">02:00 PM - 04:00 PM</option>
+          <option value="04:30 PM - 06:30 PM">04:30 PM - 06:30 PM</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Project Purpose:</label>
+        <input type="text" id="resBookPurpose" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="e.g., Deep Learning Model Training / Project Review">
+      </div>
+      <button class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition mt-2" onclick="window.submitResourceBooking()">
+        <i class="fas fa-check mr-1.5"></i> Confirm Reservation
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 13. PARENT WARD MONITOR MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="parentOverviewModal" onclick="if(event.target===this) window.closeParentOverviewModal()">
+  <div class="bg-slate-900 border border-emerald-500/40 text-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-emerald-600/30 text-emerald-400 flex items-center justify-center"><i class="fas fa-people-roof"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Parent &amp; Guardian Monitoring Console</h3>
+          <p class="text-[11px] text-slate-400">Ward Academic Progress, UGC Attendance Compliance &amp; Dues</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeParentOverviewModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="parentOverviewBody" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 14. SECURITY GUARD MODAL -->
+<div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="securityGuardModal" onclick="if(event.target===this) window.closeSecurityGuardModal()">
+  <div class="bg-slate-900 border border-cyan-500/40 text-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-cyan-600/30 text-cyan-300 flex items-center justify-center"><i class="fas fa-shield-halved"></i></div>
+        <div>
+          <h3 class="font-black text-sm text-white">Campus Security &amp; Gate Control Station</h3>
+          <p class="text-[11px] text-slate-400">Live Gate Barrier, Visitor Log, SOS Alarms &amp; CCTV Telemetry</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeSecurityGuardModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="securityGuardBody" class="overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- 15. VISITOR PASS ISSUER MODAL -->
+<div class="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden" id="visitorPassIssuerModal" onclick="if(event.target===this) window.closeVisitorPassIssuerModal()">
+  <div class="bg-slate-900 border border-cyan-500/40 text-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-black text-sm text-white">Issue Visitor Gate Pass</h3>
+      <button class="text-slate-400 hover:text-white" onclick="window.closeVisitorPassIssuerModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-3 text-xs">
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Visitor Full Name:</label>
+        <input type="text" id="visName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="e.g. Dr. K. S. Murthy">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Phone Number:</label>
+        <input type="text" id="visPhone" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="+91 98110 00000">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Purpose of Visit:</label>
+        <input type="text" id="visPurpose" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="e.g. Guest Lecture / Campus Interview / Parent Visit">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Host Faculty / Office:</label>
+        <input type="text" id="visHost" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="e.g. Dr. Rajesh Sharma (HOD CSE)">
+      </div>
+      <div>
+        <label class="block text-slate-400 font-bold mb-1">Vehicle Number (if any):</label>
+        <input type="text" id="visVehicle" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none" placeholder="DL-03-AB-1234">
+      </div>
+      <button class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs transition mt-2" onclick="window.submitVisitorPassAction()">
+        <i class="fas fa-id-badge mr-1.5"></i> Authorize &amp; Issue Pass
+      </button>
+    </div>
+  </div>
+</div>
+

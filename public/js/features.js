@@ -43,24 +43,42 @@ window.addPlacementCertificate = () => act(async () => {
 // ---------- AI advisor chat ----------
 const aiHistory = [];
 function aiBubble(role, html) {
-  const box = sel('aiChatMessages'), bot = role === 'assistant';
+  const box = sel('aiChatMessages');
+  if (!box) return;
+  const bot = role === 'assistant';
   box.insertAdjacentHTML('beforeend', `<div class="flex ${bot ? '' : 'justify-end'} gap-3 mb-3">${bot ? '<div class="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0"><i class="fas fa-robot"></i></div>' : ''}<div class="max-w-[80%] rounded-2xl px-4 py-3 text-sm ${bot ? 'bg-indigo-50 text-gray-800' : 'bg-indigo-600 text-white'}">${html}</div></div>`);
   box.scrollTop = box.scrollHeight;
 }
 window.sendAIChatMessage = async () => {
-  const inp = sel('aiChatInput'), text = inp.value.trim(); if (!text) return;
+  const inp = sel('aiChatInput');
+  if (!inp) return;
+  const text = inp.value.trim(); if (!text) return;
   inp.value = ''; aiBubble('user', esc(text));
-  aiBubble('assistant', '<i class="fas fa-ellipsis fa-fade"></i>'); const typing = sel('aiChatMessages').lastElementChild;
+  const box = sel('aiChatMessages');
+  if (!box) return;
+  aiBubble('assistant', '<i class="fas fa-ellipsis fa-fade"></i>');
+  const typing = box.lastElementChild;
   try {
     const r = await api('/ai/chat', { body: { message: text, history: aiHistory } });
     aiHistory.push({ role: 'user', content: text }, { role: 'assistant', content: r.reply });
-    typing.remove(); aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${(r.engine === 'gemini') ? 'Google Gemini (' + (r.model || 'Active') + ')' : 'Offline engine'}</p>`);
-  } catch (e) { typing.remove(); aiBubble('assistant', esc(e.message)); }
+    if (typing) typing.remove();
+    aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${(r.engine === 'gemini') ? 'Google Gemini (' + (r.model || 'Active') + ')' : 'Offline engine'}</p>`);
+  } catch (e) {
+    if (typing) typing.remove();
+    aiBubble('assistant', esc(e.message));
+  }
 };
 L['ai-assistant'] = () => {
   const inp = sel('aiChatInput');
-  if (!inp.dataset.bound) { inp.dataset.bound = 1; inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendAIChatMessage(); }); }
-  if (!sel('aiChips')) sel('aiChatMessages').insertAdjacentHTML('afterend', `<div id="aiChips" class="flex flex-wrap gap-2 px-4 pb-3">${['Can I bunk classes?', 'How is my CGPA?', 'What is my next class?', 'Am I at risk of backlogs?', 'Give me a study plan'].map((q) => `<button class="text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100" onclick="sel('aiChatInput').value='${q}';sendAIChatMessage()">${q}</button>`).join('')}</div>`);
+  const box = sel('aiChatMessages');
+  if (!inp || !box) return;
+  if (!inp.dataset.bound) {
+    inp.dataset.bound = 1;
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendAIChatMessage(); });
+  }
+  if (!sel('aiChips')) {
+    box.insertAdjacentHTML('afterend', `<div id="aiChips" class="flex flex-wrap gap-2 px-4 pb-3">${['Can I bunk classes?', 'How is my CGPA?', 'What is my next class?', 'Am I at risk of backlogs?', 'Give me a study plan'].map((q) => `<button class="text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100" onclick="const input=sel('aiChatInput');if(input){input.value='${q}';sendAIChatMessage();}">${q}</button>`).join('')}</div>`);
+  }
 };
 window.sel = sel;
 

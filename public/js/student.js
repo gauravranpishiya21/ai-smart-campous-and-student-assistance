@@ -149,10 +149,12 @@ function showSection(id) {
   document.querySelectorAll('.content-section').forEach((s) => s.classList.add('hidden'));
   const sec = $(id); if (!sec) return;
   sec.classList.remove('hidden');
-  document.querySelectorAll('#sidebar .sidebar-item').forEach((a) => {
-    const on = (a.getAttribute('onclick') || '').includes(`showSection('${id}')`);
-    a.classList.toggle('active', on);
+  document.querySelectorAll('.sidebar-item').forEach((a) => {
+    const target = a.dataset.sec || a.getAttribute('data-sec');
+    const on = (target === id) || (a.getAttribute('onclick') || '').includes(`'${id}'`);
+    a.classList.toggle('active', !!on);
   });
+  document.body.classList.remove('nav-open');
   try { history.replaceState(null, '', '#' + id); } catch { /* ignore */ }
   window.scrollTo({ top: 0 });
   const fn = window.loaders[id];

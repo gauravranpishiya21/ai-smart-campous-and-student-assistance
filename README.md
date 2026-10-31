@@ -124,13 +124,19 @@ cp .env.example .env
 ```bash
 npm test
 ```
-The test suite executes 37 automated tests across:
+The test suite executes 45 automated tests across:
 - Authentication & JWT handling (valid, missing, invalid, expired).
 - Security & authorization (unauthenticated AI route rejection, role spoofing prevention, IDOR protection, admin guards).
 - Gemini API integration with mocked provider, timeout handling, quota exhaustion, rate limiting, and offline fallback.
 - Full application regression checks across all student, academic, and administrative modules.
+- DOM integrity & client contract: 0 duplicate IDs, 100% reachability across 34 student sections and 15 admin subsystems, 0 deprecated 404 script references.
 
-### 4. Start the Application
+### 4. Build Stylesheets
+```bash
+npm run build:css
+```
+
+### 5. Start the Application
 ```bash
 npm start
 ```
@@ -141,6 +147,27 @@ The application will launch at **`http://localhost:3000`**.
 |---|---|---|---|
 | **Student** | `http://localhost:3000` | `2024CS0042` (or `test@smartcampus.edu`) | `student123` |
 | **Administrator** | `http://localhost:3000/admin.html` | `ADMIN001` | `student123` |
+
+---
+
+## 🧭 Navigation Architecture
+
+### Student Portal (`/index.html`)
+Unified sidebar-first hierarchy exposing all 34 campus modules:
+- **Overview**: Dashboard
+- **Academics & Learning**: Academic Overview, Attendance Hub, Class Timetable, Smart Exam Schedule, Syllabus Roadmap, Curriculum Structure, Academic Calendar, Digital Library, Study Materials, Certificates & Hall Ticket
+- **AI Intelligence**: AI Kernel Core Commander (Ctrl+K), AI Doubt Solver, AI Study Planner, AI Campus Helpdesk
+- **Student Services**: Fee Status & Ledger, Counselling & Wellness, Cafeteria & Store, Health & Medical, Student Wallet & Finance, Hostel & Campus Help, Virtual Campus Map, Smart Parking, Campus Security
+- **Career & Development**: Manage Projects, Career Placements, Resume Builder, CGPA Predictor
+- **Campus Community**: Community Hub, Discussion Forum, Campus Social Feed, Faculty Directory, Student Leaderboard, Webinars & Live Streams, Notice Board
+
+### Admin Portal (`/admin.html`)
+Dedicated enterprise console wired directly to database APIs:
+- **Executive Pulse**: Campus KPIs, Attendance Health Radar, Department Breakdown, Daemon Feed
+- **Academic Control**: Student Directory, Attendance Deficit Scanner & Exemption Overrides, Marks & CIA Grading, Syllabus PDF Uploader, Digital Library Ebook Repository, Department Registry, Teacher Workspaces
+- **Institutional Finance**: Fee Ledgers, Outstanding Dues Tracker, Offline Payment Receipt Ledger
+- **Campus Operations**: Bulletin Notice Publisher with AI Summaries, Helpdesk Ticket Triage, Leave Approval Queue, Forum Moderation
+- **Security & Automation**: Cron Automation Runner & Live Daemon Log, Security Login Audit Trail
 
 ---
 

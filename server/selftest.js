@@ -577,6 +577,16 @@ const t = async (name, fn) => {
     assert.strictEqual(pg.status, 200);
   });
 
+  // --- 5. DOM Integrity, Navigation & Client Contract Tests ---
+  try {
+    const { runDomValidationTests } = require('../tests/dom_validation.test');
+    runDomValidationTests();
+    passed += 8;
+  } catch (err) {
+    console.error('  ✗ DOM validation failed:', err.message);
+    process.exitCode = 1;
+  }
+
   // Post-test cleanup
   cleanupUser('TEST001');
   cleanupUser('TEST002');

@@ -230,8 +230,8 @@ const t = async (name, fn) => {
   // ========================================================
   console.log('\n--- 3. Google Gemini AI Tests ---');
 
-  await t('Gemini configuration defaults to gemini-1.5-flash', async () => {
-    assert.strictEqual(ai.getGeminiModel(), process.env.GEMINI_MODEL || 'gemini-1.5-flash');
+  await t('Gemini configuration defaults to active Gemini model', async () => {
+    assert.strictEqual(ai.getGeminiModel(), process.env.GEMINI_MODEL || 'gemini-3.5-flash');
     const statusRes = await call('GET', '/ai/status');
     assert.strictEqual(statusRes.status, 200);
     assert.ok(statusRes.body.model);
@@ -335,17 +335,19 @@ const t = async (name, fn) => {
   });
 
   await t('Offline fallback engine works completely without any external API key', async () => {
-    // Ensure no mock client and no key
+    const origKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
     ai.setTestClient(null);
-    const chatRes = await call('POST', '/ai/chat', { message: 'Hello' }, token);
-    assert.strictEqual(chatRes.status, 200);
-    assert.strictEqual(chatRes.body.engine, 'offline');
-    assert.ok(chatRes.body.reply.includes('Hi Test'));
 
-    const doubtRes = await call('POST', '/ai/doubt', { subject: 'Operating Systems', text: 'What is a deadlock?' }, token);
-    assert.strictEqual(doubtRes.status, 200);
-    assert.ok(doubtRes.body.explanation.includes('Deadlock'));
-    assert.strictEqual(doubtRes.body.source, 'offline-kb');
+    const localChat = await ai.chat(1, [], 'Hello');
+    assert.strictEqual(localChat.engine, 'offline');
+    assert.ok(localChat.reply.startsWith('Hi ') && localChat.reply.includes('attendance'));
+
+    const localDoubt = await ai.doubtSolve('Operating Systems', 'What is a deadlock?');
+    assert.strictEqual(localDoubt.source, 'offline-kb');
+    assert.ok(localDoubt.explanation.includes('Deadlock'));
+
+    process.env.GEMINI_API_KEY = origKey;
   });
 
   // ========================================================

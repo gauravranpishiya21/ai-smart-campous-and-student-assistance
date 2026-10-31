@@ -54,7 +54,7 @@ window.sendAIChatMessage = async () => {
   try {
     const r = await api('/ai/chat', { body: { message: text, history: aiHistory } });
     aiHistory.push({ role: 'user', content: text }, { role: 'assistant', content: r.reply });
-    typing.remove(); aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${(r.engine === 'gemini' || r.engine === 'claude') ? 'Gemini 1.5 Flash' : 'Offline engine'}</p>`);
+    typing.remove(); aiBubble('assistant', md(r.reply) + `<p class="text-[10px] text-gray-400 mt-1">${(r.engine === 'gemini') ? 'Google Gemini (' + (r.model || 'Active') + ')' : 'Offline engine'}</p>`);
   } catch (e) { typing.remove(); aiBubble('assistant', esc(e.message)); }
 };
 L['ai-assistant'] = () => {

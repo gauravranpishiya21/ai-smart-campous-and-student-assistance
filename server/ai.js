@@ -49,7 +49,7 @@ function llmAvailable() {
 }
 
 function getGeminiModel() {
-  return process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  return process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 }
 
 function setTestClient(mockClient) {
@@ -81,7 +81,7 @@ async function llm(system, messages, { maxTokens = 700 } = {}) {
       aiClient = client;
     }
 
-    const modelName = getGeminiModel();
+    let modelName = getGeminiModel();
 
     // Map messages to Gemini Content schema (roles: 'user' and 'model')
     const contents = (messages || []).map((m) => ({
@@ -89,16 +89,37 @@ async function llm(system, messages, { maxTokens = 700 } = {}) {
       parts: [{ text: String(m.content || '') }]
     }));
 
-    const response = await aiClient.models.generateContent({
-      model: modelName,
-      contents,
-      config: {
-        systemInstruction: system || undefined,
-        maxOutputTokens: maxTokens,
-        temperature: 0.7,
-        abortSignal: AbortSignal.timeout(20000)
+    let response;
+    try {
+      response = await aiClient.models.generateContent({
+        model: modelName,
+        contents,
+        config: {
+          systemInstruction: system || undefined,
+          maxOutputTokens: maxTokens,
+          temperature: 0.7,
+          abortSignal: AbortSignal.timeout(20000)
+        }
+      });
+    } catch (modelErr) {
+      const errMsg = modelErr?.message || String(modelErr);
+      if (/not found|404/i.test(errMsg) && modelName !== 'gemini-3.5-flash') {
+        console.warn(`[ai] Model ${modelName} not found, falling back to gemini-3.5-flash...`);
+        modelName = 'gemini-3.5-flash';
+        response = await aiClient.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            systemInstruction: system || undefined,
+            maxOutputTokens: maxTokens,
+            temperature: 0.7,
+            abortSignal: AbortSignal.timeout(20000)
+          }
+        });
+      } else {
+        throw modelErr;
       }
-    });
+    }
 
     const text = response?.text ? response.text.trim() : null;
     if (text) {
@@ -386,7 +407,13 @@ async function doubtSolve(subject, text) {
     'You are a patient university tutor. Answer the student doubt clearly and accurately for an engineering undergraduate. Respond ONLY with JSON: {"explanation": string (use short paragraphs, may use **bold**), "notes": [3-5 short key points], "topics": [3 related topics]}.',
     [{ role: 'user', content: `Subject: ${subject}\nDoubt: ${text}` }], { maxTokens: 900 });
   if (out) {
-    try { const j = JSON.parse(out.replace(/^```json|```$/gm, '').trim()); if (j.explanation) return { ...j, source: 'gemini' }; } catch { /* fall through */ }
+    try {
+      const match = out.match(/\{[\s\S]*\}/);
+      if (match) {
+        const j = JSON.parse(match[0]);
+        if (j.explanation) return { ...j, source: 'gemini' };
+      }
+    } catch { /* fall through */ }
     return { explanation: out, notes: [], topics: [], source: 'gemini' };
   }
   return doubtLocal(subject, text);
@@ -455,7 +482,7 @@ async function chat(userId, history, msg) {
   const out = await llm(
     `You are the AI Campus Advisor of a university's Smart Campus system. Be concise, warm and practical (max ~120 words). Use ONLY the student's data below for personal facts; never invent numbers. For distress, recommend counselling and Tele-MANAS 14416.\nSTUDENT DATA: ${JSON.stringify(ctx)}`,
     [...(history || []).slice(-8).map((h) => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: String(h.content).slice(0, 1000) })), { role: 'user', content: msg }]);
-  return { reply: out || chatLocal(userId, msg), engine: out ? 'gemini' : 'offline' };
+  return { reply: out || chatLocal(userId, msg), engine: out ? 'gemini' : 'offline', model: out ? getGeminiModel() : 'offline' };
 }
 
 async function plannerChat(userId, history, msg) {

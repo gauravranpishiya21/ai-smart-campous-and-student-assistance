@@ -130,7 +130,21 @@ main {
   min-width:0; padding:calc(var(--campus-topbar-height) + 1.35rem) 1.5rem 2rem !important;
 }
 main > .flex.items-center.justify-between.mb-8:first-child { top:calc(var(--campus-topbar-height) + 8px) !important; }
-.menu-fab, .sidebar-backdrop { display:none !important; }
+.menu-fab {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-right: .75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--card-bg, #ffffff);
+  color: var(--text-main, #1e293b);
+  cursor: pointer;
+}
+.sidebar-backdrop { display: none; }
 @media (max-width: 900px) {
   :root { --campus-topbar-height: 68px; --campus-rail-width: 210px; }
   .campus-topbar { padding:.4rem .65rem; gap:.65rem; }
@@ -413,10 +427,11 @@ main > .flex.items-center.justify-between.mb-8:first-child { top:calc(var(--camp
 
 </head> <body class="flex min-h-screen">\n
 <header aria-label="Primary navigation" class="campus-topbar" id="campusTopbar">
-<div class="p-6 flex items-center space-x-3 border-b"> <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white"> <i class="fas fa-graduation-cap text-xl"></i> </div>
+<div class="p-6 flex items-center space-x-3 border-b"> <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white cursor-pointer" onclick="showSection('dashboard')" title="Back to Dashboard"> <i class="fas fa-graduation-cap text-xl"></i> </div>
 <nav aria-label="Essential navigation" class="campus-topnav">
 <p class="text-[10px] font-black uppercase text-gray-400 tracking-wider px-3 mb-2">Essential</p>
 <ul class="space-y-1 mb-4">
+<li> <a class="sidebar-item flex items-center space-x-3 p-3 rounded-lg active" href="#" onclick="showSection('dashboard')"> <i aria-hidden="true" class="fas fa-chart-pie nav-ico"></i> <span class="font-bold text-sm">Dashboard</span> </a> </li>
 <li> <a class="sidebar-item flex items-center space-x-3 p-3 rounded-lg" href="#" onclick="showSection('academics')"> <i aria-hidden="true" class="fas fa-building-columns nav-ico"></i> <span class="font-bold text-sm">Academics &amp; Fees</span> </a> </li>
 <li> <a class="sidebar-item flex items-center space-x-3 p-3 rounded-lg" href="#" onclick="showSection('syllabus-roadmap')"> <i aria-hidden="true" class="fas fa-route nav-ico"></i> <span class="font-bold text-sm">Syllabus</span> </a> </li>
 <li> <a class="sidebar-item flex items-center space-x-3 p-3 rounded-lg" href="#" onclick="showSection('attendance-hub')"> <i aria-hidden="true" class="fas fa-user-check nav-ico"></i> <span class="font-medium text-sm">Attendance Hub</span> </a> </li>

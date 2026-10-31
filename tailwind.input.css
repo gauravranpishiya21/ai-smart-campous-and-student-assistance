@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-charcoal: #2A2A2A;
+  --color-charcoal-dark: #141414;
+  --color-charcoal-surface: #242424;
+  --color-charcoal-subtle: #333333;
+  --color-silver: #C0C0C0;
+  --color-silver-light: #F5F5F7;
+  --color-silver-dark: #8E8E93;
+  --color-silver-border: rgba(192, 192, 192, 0.18);
+  --color-signal: #E10600;
+  --color-signal-hover: #C40400;
+  --color-signal-glow: rgba(225, 6, 0, 0.35);
+  --primary: #E10600;
+  --primary-dark: #C40400;
+  --accent-glow: rgba(225, 6, 0, 0.22);
+}
+
+@layer utilities {
+  .bg-charcoal-base {
+    background-color: #141414;
+  }
+  .bg-charcoal-card {
+    background-color: #2A2A2A;
+  }
+  .bg-signal-red {
+    background-color: #E10600;
+  }
+  .text-moonlit-silver {
+    color: #C0C0C0;
+  }
+  .text-signal-red {
+    color: #E10600;
+  }
+  .border-moonlit-silver {
+    border-color: rgba(192, 192, 192, 0.18);
+  }
+  .border-signal-red {
+    border-color: #E10600;
+  }
+}

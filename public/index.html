@@ -314,6 +314,285 @@ main > .flex.items-center.justify-between.mb-8:first-child {
 @media(max-width:600px){.vcm-side-card{display:block}.vcm-map-viewport{min-height:480px}.vcm-map-stage{height:570px}.vcm-map-toolbar{align-items:flex-start}.vcm-search{width:100%}}
 </style>
 
+
+<style id="editorial-palette-theme">
+/* ==========================================================================
+   Editorial Palette: Charcoal Grey (#2A2A2A), Moonlit Silver (#C0C0C0), Signal Red (#E10600)
+   Inspired by @uxui_shrut "Want designs that hit different? Pair colours that belong together"
+   ========================================================================== */
+:root {
+  --color-charcoal-base: #121212;
+  --color-charcoal: #2A2A2A;
+  --color-charcoal-surface: #242424;
+  --color-charcoal-subtle: #333333;
+  --color-silver: #C0C0C0;
+  --color-silver-bright: #F5F5F7;
+  --color-silver-muted: #8E8E93;
+  --color-silver-border: rgba(192, 192, 192, 0.18);
+  --color-signal: #E10600;
+  --color-signal-hover: #C40400;
+  --color-signal-glow: rgba(225, 6, 0, 0.38);
+
+  --primary: #E10600;
+  --primary-dark: #C40400;
+  --accent-glow: rgba(225, 6, 0, 0.22);
+  --bg-light: #121212;
+  --text-main: #F5F5F7;
+  --card-bg: rgba(42, 42, 42, 0.82);
+  --sidebar-bg: rgba(26, 26, 26, 0.96);
+  --border-color: rgba(192, 192, 192, 0.18);
+}
+
+/* Atmospheric Obsidian & Crimson Ambient Background */
+html, body {
+  background-color: #121212 !important;
+  color: #F5F5F7 !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: 
+    radial-gradient(680px circle at 92% 8%, rgba(225, 6, 0, 0.16), transparent 65%),
+    radial-gradient(520px circle at 8% 88%, rgba(192, 192, 192, 0.08), transparent 70%),
+    radial-gradient(600px circle at 50% 0%, rgba(42, 42, 42, 0.5), transparent 80%) !important;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(rgba(192, 192, 192, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192, 192, 192, 0.035) 1px, transparent 1px) !important;
+  background-size: 40px 40px !important;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 25%, #000 30%, transparent 80%) !important;
+  mask-image: radial-gradient(ellipse at 50% 25%, #000 30%, transparent 80%) !important;
+}
+
+/* Unified Sidebar Surface: Charcoal Grey with Moonlit Silver accents */
+#sidebar {
+  background: rgba(26, 26, 26, 0.96) !important;
+  border-right: 1px solid rgba(192, 192, 192, 0.16) !important;
+  box-shadow: 12px 0 35px -12px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Sidebar Brand Header */
+#sidebar > div:first-child {
+  border-bottom: 1px solid rgba(192, 192, 192, 0.14) !important;
+}
+#sidebar > div:first-child .bg-indigo-600,
+#sidebar > div:first-child .bg-indigo-500 {
+  background: linear-gradient(135deg, #E10600, #ff2a24) !important;
+  box-shadow: 0 6px 20px rgba(225, 6, 0, 0.45) !important;
+}
+#sidebar > div:first-child span.text-indigo-400 {
+  color: #E10600 !important;
+}
+
+/* Sidebar Category Group Titles: Moonlit Silver */
+.nav-group-title {
+  color: #8E8E93 !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.14em !important;
+}
+.nav-group-title::after {
+  background: rgba(192, 192, 192, 0.14) !important;
+}
+
+/* Sidebar Navigation Items: Moonlit Silver typography, Signal Red active */
+.sidebar-item {
+  color: #C0C0C0 !important;
+  border: 1px solid transparent !important;
+  border-left: 3px solid transparent !important;
+}
+.sidebar-item:hover {
+  background: rgba(42, 42, 42, 0.85) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(192, 192, 192, 0.28) !important;
+  transform: translateX(2px);
+}
+.sidebar-item.active {
+  background: linear-gradient(135deg, rgba(225, 6, 0, 0.22), rgba(42, 42, 42, 0.92)) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(225, 6, 0, 0.45) !important;
+  border-left-color: #E10600 !important;
+  box-shadow: 0 4px 16px -4px rgba(225, 6, 0, 0.45) !important;
+}
+.sidebar-item .nav-ico {
+  color: #C0C0C0 !important;
+}
+.sidebar-item:hover .nav-ico {
+  color: #FFFFFF !important;
+}
+.sidebar-item.active .nav-ico {
+  color: #E10600 !important;
+}
+
+/* Sidebar Footer */
+#sidebar > div:last-child {
+  border-top: 1px solid rgba(192, 192, 192, 0.14) !important;
+  background: rgba(26, 26, 26, 0.7) !important;
+}
+
+/* Top Sticky Search & Action Bar */
+main > .flex.items-center.justify-between.mb-8:first-child {
+  background: rgba(26, 26, 26, 0.9) !important;
+  border: 1px solid rgba(192, 192, 192, 0.16) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Cards & Modals: Charcoal Grey #2A2A2A with Moonlit Silver #C0C0C0 Borders */
+.card, .bg-white, .modal-content, .admin-card {
+  background-color: rgba(42, 42, 42, 0.82) !important;
+  border: 1px solid rgba(192, 192, 192, 0.16) !important;
+  border-radius: 16px !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(192, 192, 192, 0.08) !important;
+}
+.card:hover, .bg-white:hover {
+  border-color: rgba(192, 192, 192, 0.35) !important;
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(192, 192, 192, 0.12) !important;
+}
+
+/* Typography Hierarchy */
+h1, h2, h3, h4 {
+  color: #F5F5F7 !important;
+  letter-spacing: -0.02em;
+}
+main h2.text-3xl {
+  background: linear-gradient(135deg, #FFFFFF 30%, #C0C0C0 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+.text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800 {
+  color: #F5F5F7 !important;
+}
+.text-gray-700, .text-slate-700 {
+  color: #E5E5E7 !important;
+}
+.text-gray-600, .text-gray-500, .text-slate-600, .text-slate-500 {
+  color: #C0C0C0 !important;
+}
+.text-gray-400, .text-slate-400 {
+  color: #8E8E93 !important;
+}
+
+/* Primary Action Buttons: Signal Red #E10600 */
+.btn-primary,
+button.bg-indigo-600,
+a.bg-indigo-600 {
+  background: linear-gradient(135deg, #E10600, #C40400) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(225, 6, 0, 0.7) !important;
+  box-shadow: 0 6px 20px -4px rgba(225, 6, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+}
+.btn-primary:hover,
+button.bg-indigo-600:hover,
+a.bg-indigo-600:hover {
+  background: linear-gradient(135deg, #ff1e17, #E10600) !important;
+  box-shadow: 0 10px 26px -4px rgba(225, 6, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+/* Secondary & Subtle Buttons */
+button.bg-gray-100,
+button.bg-slate-800 {
+  background-color: #2A2A2A !important;
+  color: #C0C0C0 !important;
+  border: 1px solid rgba(192, 192, 192, 0.2) !important;
+  transition: all 0.15s ease !important;
+}
+button.bg-gray-100:hover,
+button.bg-slate-800:hover {
+  background-color: #333333 !important;
+  color: #FFFFFF !important;
+  border-color: rgba(192, 192, 192, 0.35) !important;
+}
+
+/* Input Fields: Charcoal Surface with Moonlit Silver border, Signal Red focus */
+.form-input, input, select, textarea {
+  background-color: #1E1E1E !important;
+  border: 1px solid rgba(192, 192, 192, 0.2) !important;
+  color: #F5F5F7 !important;
+  border-radius: 10px !important;
+}
+.form-input:focus, input:focus, select:focus, textarea:focus {
+  border-color: #E10600 !important;
+  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.25) !important;
+  outline: none !important;
+}
+.form-input::placeholder, input::placeholder, textarea::placeholder {
+  color: #8E8E93 !important;
+}
+
+/* Tables */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+thead, thead tr, thead th {
+  background-color: rgba(42, 42, 42, 0.95) !important;
+  color: #C0C0C0 !important;
+  border-bottom: 1px solid rgba(192, 192, 192, 0.16) !important;
+}
+tbody td {
+  border-bottom: 1px solid rgba(192, 192, 192, 0.08) !important;
+  color: #E5E5E7 !important;
+}
+tbody tr:hover {
+  background-color: rgba(225, 6, 0, 0.06) !important;
+}
+
+/* Dividers & Borders */
+.border, .border-b, .border-t, .border-r, .border-l,
+.border-gray-100, .border-gray-200, .border-gray-300,
+.border-slate-700, .border-slate-800 {
+  border-color: rgba(192, 192, 192, 0.15) !important;
+}
+
+/* Badges & Accents */
+.text-indigo-600, .text-indigo-700, .text-indigo-400 {
+  color: #E10600 !important;
+}
+.bg-indigo-50, .bg-indigo-50\/50, .bg-indigo-500\/10 {
+  background-color: rgba(225, 6, 0, 0.12) !important;
+  border-color: rgba(225, 6, 0, 0.3) !important;
+}
+.text-emerald-600, .text-emerald-400 {
+  color: #34d399 !important;
+}
+.text-rose-600, .text-red-600 {
+  color: #E10600 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+</style>
+
 </head> <body class="flex min-h-screen">\n
 <div aria-hidden="true" class="sidebar-backdrop" id="sidebarBackdrop"></div>
 <aside aria-label="Main navigation" class="sidebar bg-slate-900 border-r border-slate-800 flex flex-col fixed h-full z-50" id="sidebar">

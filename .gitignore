@@ -9,3 +9,4 @@ coverage/
 data/*.bak
 data/*.db-wal
 data/*.db-shm
+*-prompt.md

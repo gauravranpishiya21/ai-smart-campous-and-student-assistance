@@ -170,14 +170,9 @@ async function boot() {
   $('studentName').textContent = me.name;
   const topName = $('topHeaderStudentName'); if (topName) topName.textContent = me.name ? me.name.split(' ')[0] : 'Profile';
   if (me.role === 'admin' || me.role === 'super_admin') {
-    let adminBtn = $('adminConsoleBtn');
-    if (!adminBtn) {
-      adminBtn = document.createElement('a');
-      adminBtn.id = 'adminConsoleBtn';
-      adminBtn.href = '/admin.html';
-      adminBtn.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition mr-2';
-      adminBtn.innerHTML = '<i class="fas fa-shield-halved"></i> Admin Console';
-      $('logoutBtn')?.parentElement?.prepend(adminBtn);
+    const adminShortcut = $('adminShortcutContainer');
+    if (adminShortcut) {
+      adminShortcut.classList.remove('hidden');
     }
   }
   const g = $('gamificationStatus'); g.classList.remove('hidden');
@@ -1429,3 +1424,155 @@ document.addEventListener('DOMContentLoaded', () => {
   $('logoutBtn').onclick = logout;
   boot();
 });
+
+
+// ---------- Study Materials (Cohort Isolated) ----------
+let cachedCohortMaterials = [];
+let currentSubjectFilter = 'ALL';
+
+async function loadStudyMaterials() {
+  const grid = $('studyMaterialsGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="col-span-full p-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading course materials for your semester...</div>';
+
+  try {
+    const data = await api('/materials');
+    cachedCohortMaterials = data.items || data.materials || [];
+
+    // Update cohort badge
+    const badge = $('learningCohortBadge');
+    if (badge) {
+      badge.textContent = `Year ${data.studentYear || 2} • Sem ${data.studentSem || 4} • ${data.dept || 'Engineering'}`;
+    }
+
+    populateStudyMaterialPills(cachedCohortMaterials);
+    renderStudyMaterialsGrid(cachedCohortMaterials);
+  } catch (err) {
+    grid.innerHTML = `<div class="col-span-full p-12 text-center text-rose-500 font-semibold"><i class="fas fa-circle-exclamation mr-2"></i>Failed to load course materials: ${esc(err.message || 'Server error')}</div>`;
+  }
+}
+
+function populateStudyMaterialPills(materials) {
+  const container = $('materialsSubjectFilterPills');
+  if (!container) return;
+
+  const subjects = ['ALL', ...new Set(materials.map(m => m.subject_code || m.subject_name).filter(Boolean))];
+  container.innerHTML = subjects.map(sub => `
+    <button type="button" onclick="setStudyMaterialFilter('${esc(sub)}')" class="px-3 py-1 rounded-full text-xs font-bold transition ${currentSubjectFilter === sub ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}">
+      ${esc(sub === 'ALL' ? 'All Subjects' : sub)}
+    </button>
+  `).join('');
+}
+
+function setStudyMaterialFilter(sub) {
+  currentSubjectFilter = sub;
+  populateStudyMaterialPills(cachedCohortMaterials);
+  filterStudyMaterials();
+}
+
+function filterStudyMaterials() {
+  const query = ($('materialsSearchInput')?.value || '').toLowerCase().trim();
+  let list = cachedCohortMaterials;
+
+  if (currentSubjectFilter !== 'ALL') {
+    list = list.filter(m => (m.subject_code === currentSubjectFilter) || (m.subject_name === currentSubjectFilter));
+  }
+
+  if (query) {
+    list = list.filter(m =>
+      (m.title && m.title.toLowerCase().includes(query)) ||
+      (m.description && m.description.toLowerCase().includes(query)) ||
+      (m.subject_name && m.subject_name.toLowerCase().includes(query)) ||
+      (m.subject_code && m.subject_code.toLowerCase().includes(query)) ||
+      (m.material_type && m.material_type.toLowerCase().includes(query))
+    );
+  }
+
+  renderStudyMaterialsGrid(list);
+}
+
+function renderStudyMaterialsGrid(materials) {
+  const grid = $('studyMaterialsGrid');
+  if (!grid) return;
+
+  if (!materials.length) {
+    grid.innerHTML = `
+      <div class="col-span-full p-12 text-center bg-white rounded-2xl border border-gray-200">
+        <i class="fas fa-folder-open text-3xl text-gray-400 mb-3 block"></i>
+        <p class="text-sm font-bold text-gray-700">No study materials found</p>
+        <p class="text-xs text-gray-400 mt-1">Check back later or try adjusting your search filters.</p>
+      </div>`;
+    return;
+  }
+
+  const badgeColors = {
+    'Syllabus': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    'Lecture Slides': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    'Lab Manual': 'bg-purple-50 text-purple-700 border-purple-200',
+    'Formula Sheet': 'bg-amber-50 text-amber-700 border-amber-200',
+    'Past Paper Solutions': 'bg-rose-50 text-rose-700 border-rose-200',
+    'Reference Book': 'bg-cyan-50 text-cyan-700 border-cyan-200'
+  };
+
+  grid.innerHTML = materials.map(m => {
+    const badgeCls = badgeColors[m.material_type] || 'bg-gray-100 text-gray-700 border-gray-200';
+    return `
+      <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              ${esc(m.subject_code || 'ACAD')}
+            </span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls}">
+              ${esc(m.material_type || 'Study Guide')}
+            </span>
+          </div>
+          <h3 class="font-extrabold text-base text-gray-800 mb-1 leading-snug">${esc(m.title)}</h3>
+          <p class="text-xs text-indigo-600 font-semibold mb-2">${esc(m.subject_name || m.dept)}</p>
+          <p class="text-xs text-gray-500 line-clamp-3 mb-4 leading-relaxed">${esc(m.description || 'Institutional cohort curriculum material.')}</p>
+        </div>
+        <div class="pt-3 border-t border-gray-100 flex items-center justify-between mt-auto">
+          <span class="text-[11px] text-gray-400 font-medium">
+            <i class="fas fa-layer-group text-gray-400 mr-1"></i>Year ${m.year} (Sem ${m.semester})
+          </span>
+          <button type="button" onclick="downloadStudyMaterial(${m.id}, '${esc(m.title).replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+            <i class="fas fa-file-arrow-down"></i>
+            <span>Download</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function downloadStudyMaterial(id, title) {
+  try {
+    const res = await fetch(`/api/materials/${id}/download`, {
+      headers: { 'Authorization': `Bearer ${token()}` }
+    });
+    if (!res.ok) {
+      let err;
+      try { err = await res.json(); } catch (_) {}
+      throw new Error(err?.message || 'Download failed');
+    }
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(title || 'study_material').replace(/[^a-zA-Z0-9_-]/g, '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Could not download material: ' + err.message);
+  }
+}
+
+window.loadStudyMaterials = loadStudyMaterials;
+window.filterStudyMaterials = filterStudyMaterials;
+window.setStudyMaterialFilter = setStudyMaterialFilter;
+window.downloadStudyMaterial = downloadStudyMaterial;
+window.loaders = window.loaders || {};
+window.loaders.learning = loadStudyMaterials;

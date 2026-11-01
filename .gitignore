@@ -1,4 +1,3 @@
-
 node_modules/
 .env
 .env.local
@@ -6,3 +5,8 @@ node_modules/
 .DS_Store
 npm-debug.log
 coverage/
+*.bak
+data/*.bak
+data/*.db-wal
+data/*.db-shm
+*-prompt.md

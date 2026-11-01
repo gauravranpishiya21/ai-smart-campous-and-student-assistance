@@ -131,6 +131,7 @@ function showSection(id) {
   else if (id === 'sec-leaves') loadLeaves();
   else if (id === 'sec-automation') loadAutomation();
   else if (id === 'sec-audit') loadAudit();
+  else if (id === 'sec-library' || id === 'digital-library') { if (typeof window.loadDigitalLibraryFiles === 'function') window.loadDigitalLibraryFiles(); }
 }
 
 // ---------- Section 1: Overview ----------
@@ -980,8 +981,9 @@ async function bootAdmin() {
     return showAdminLogin();
   }
 
-  $('adminNameDisplay').textContent = currentAdmin.name;
-  $('adminRoleDisplay').textContent = currentAdmin.roll_no + ' · ' + currentAdmin.role.toUpperCase();
+  if ($('adminNameDisplay')) $('adminNameDisplay').textContent = currentAdmin.name;
+  if ($('adminRoleDisplay')) $('adminRoleDisplay').textContent = currentAdmin.roll_no + ' · ' + currentAdmin.role.toUpperCase();
+  if ($('adminName')) $('adminName').textContent = currentAdmin.name;
 
   const startSec = (location.hash || '#sec-overview').slice(1);
   showSection($(startSec) ? startSec : 'sec-overview');
@@ -991,3 +993,40 @@ document.addEventListener('DOMContentLoaded', () => {
   bootAdmin();
 });
 
+
+// Window exports for UI event handlers
+Object.assign(window, {
+  showSection,
+  openModal,
+  closeModal,
+  loadOverview,
+  loadStudents,
+  renderStudentTable,
+  submitAddStudent,
+  openEditStudent,
+  submitEditStudent,
+  deleteStudent,
+  exportStudentsCSV,
+  loadAttendance,
+  openOverrideModal,
+  submitAttendanceOverride,
+  loadAcademics,
+  openMarksModal,
+  submitMarksUpdate,
+  loadFees,
+  openPaymentForStudent,
+  submitRecordPayment,
+  loadNotices,
+  submitPublishNotice,
+  deleteNotice,
+  loadTickets,
+  updateTicketStatus,
+  loadLeaves,
+  reviewLeave,
+  loadAutomation,
+  triggerJob,
+  loadAudit,
+  showAdminLogin,
+  logoutAdmin,
+  bootAdmin
+});

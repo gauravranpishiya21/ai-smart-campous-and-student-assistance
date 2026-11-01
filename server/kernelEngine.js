@@ -36,8 +36,18 @@ CRITICAL DIRECTIVES:
 `;
 
 function executeKernel(envelope) {
-  const userId = envelope.user_id ? Number(envelope.user_id) : (envelope.user?.id || 1);
-  const role = String(envelope.role || envelope.user?.role || 'student').toLowerCase();
+  // Prioritize verified user object from authentication middleware
+  let user = envelope.user || null;
+  const userId = user ? Number(user.id) : (envelope.user_id ? Number(envelope.user_id) : null);
+
+  if (!user && userId) {
+    try {
+      user = db.prepare('SELECT * FROM users WHERE id=?').get(userId);
+    } catch (e) { /* DB error fallback */ }
+  }
+
+  // Derive role strictly from verified user record if present
+  const role = user ? String(user.role).toLowerCase() : String(envelope.role || 'student').toLowerCase();
   const intent = String(envelope.action_intent || envelope.prompt || '').trim();
 
   // If no intent supplied
@@ -77,14 +87,20 @@ function executeKernel(envelope) {
     };
   }
 
-  // Fetch student/user database record
-  let user = null;
-  try {
-    user = db.prepare('SELECT * FROM users WHERE id=?').get(userId);
-    if (!user) {
-      user = db.prepare("SELECT * FROM users WHERE role='student' LIMIT 1").get() || db.prepare("SELECT * FROM users LIMIT 1").get();
-    }
-  } catch (e) { /* fallback */ }
+  // Validate that user exists in database without leaking other students' records
+  if (!user) {
+    return {
+      success: false,
+      status: 'USER_NOT_FOUND',
+      kernel_version: KERNEL_VERSION,
+      intent_classified: 'UNKNOWN',
+      execution_required: false,
+      target_function: null,
+      parameters: { user_id: userId },
+      ui_target_module: 'security-alert',
+      response_message: 'Security error: Verified user account not found in database. Access denied.'
+    };
+  }
 
   const uId = user ? user.id : 1;
   const uYear = user ? (user.year || 2) : 2;

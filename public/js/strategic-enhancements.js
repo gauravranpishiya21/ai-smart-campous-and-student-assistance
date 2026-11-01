@@ -6,12 +6,69 @@
  let charts={},warTimer=null,warCount=0;
  const chartBase={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cbd5e1',usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:'#0f172a',borderColor:'rgba(255,255,255,.15)',borderWidth:1}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(148,163,184,.10)'}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(148,163,184,.10)'}}}};
  function chart(id,type,data,opts={}){const el=$(id);if(!el||!window.Chart)return;if(charts[id])charts[id].destroy();charts[id]=new Chart(el,{type,data,options:{...chartBase,...opts}})}
- function renderAnalytics(){
-  const weeks=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  chart('strategicAttendanceChart','line',{labels:weeks,datasets:[{label:'Attendance %',data:[91,88,94,92,86,89,95],borderColor:palette.indigo,backgroundColor:'rgba(129,140,248,.14)',fill:true,tension:.38},{label:'Predicted %',data:[92,90,93,94,89,91,96],borderColor:palette.cyan,borderDash:[6,5],tension:.38} ]});
-  chart('strategicPerformanceChart','bar',{labels:['CSE','ECE','ME','CE','MBA','MED'],datasets:[{label:'Average score',data:[82,76,79,74,86,88],backgroundColor:[palette.indigo,palette.cyan,palette.green,palette.amber,palette.violet,palette.rose],borderRadius:7}]},{scales:{...chartBase.scales,y:{...chartBase.scales.y,min:0,max:100}}});
-  chart('strategicResourcesChart','doughnut',{labels:['Labs','Classrooms','Library','Sports'],datasets:[{data:[72,84,61,48],backgroundColor:[palette.indigo,palette.cyan,palette.green,palette.amber],borderWidth:0,hoverOffset:6}]},{cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'#cbd5e1',usePointStyle:true,padding:18}}}});
-  chart('strategicRiskChart','line',{labels:['W1','W2','W3','W4','W5','W6'],datasets:[{label:'At-risk students',data:[34,29,31,23,19,16],borderColor:palette.rose,backgroundColor:'rgba(251,113,133,.12)',fill:true,tension:.35}]});
+ async function renderAnalytics(){
+  let attendanceLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let attendanceData = [85, 88, 90, 86, 92, 89, 91];
+  let predictedData = [86, 89, 91, 88, 93, 90, 92];
+  let perfLabels = ['CSE','ECE','ME','CE','MBA','MED'];
+  let perfData = [82, 76, 79, 74, 86, 88];
+  let resourceLabels = ['Labs','Classrooms','Library','Campus Hub'];
+  let resourceData = [72, 84, 61, 68];
+  let riskLabels = ['High Risk', 'Medium Risk', 'Low Risk', 'Safe Cohort'];
+  let riskData = [12, 19, 25, 44];
+
+  // If student or admin is authenticated, fetch live metrics from backend APIs
+  if (window.api && (localStorage.getItem('token') || localStorage.getItem('admin_token'))) {
+    try {
+      const [dashRes, resTelemetry, radarRes] = await Promise.allSettled([
+        window.api('/dashboard', { noAuthRedirect: true }),
+        window.api('/resources/telemetry', { noAuthRedirect: true }),
+        window.api('/analytics/early-warning-radar', { noAuthRedirect: true })
+      ]);
+
+      if (dashRes.status === 'fulfilled' && dashRes.value?.trend) {
+        const t = dashRes.value.trend;
+        if (t.labels && t.labels.length) {
+          attendanceLabels = t.labels;
+          attendanceData = t.data || [];
+          predictedData = t.forecast ? t.data.map((d) => Math.min(100, Math.round(d * 1.02))) : [];
+        }
+        if (dashRes.value.performance && dashRes.value.performance.labels?.length) {
+          perfLabels = dashRes.value.performance.labels;
+          perfData = dashRes.value.performance.data;
+        }
+      }
+
+      if (resTelemetry.status === 'fulfilled' && resTelemetry.value?.zones) {
+        const zones = resTelemetry.value.zones;
+        const labs = zones.filter((z) => z.type === 'Laboratory');
+        const classrooms = zones.filter((z) => z.type === 'Classroom');
+        const library = zones.filter((z) => z.type === 'Shared Space');
+        const labOcc = labs.length ? Math.round((labs.reduce((a, b) => a + (b.occupancy / b.capacity), 0) / labs.length) * 100) : 70;
+        const crOcc = classrooms.length ? Math.round((classrooms.reduce((a, b) => a + (b.occupancy / b.capacity), 0) / classrooms.length) * 100) : 65;
+        const libOcc = library.length ? Math.round((library.reduce((a, b) => a + (b.occupancy / b.capacity), 0) / library.length) * 100) : 55;
+        resourceLabels = ['Labs', 'Classrooms', 'Library', 'Campus Hub'];
+        resourceData = [labOcc, crOcc, libOcc, Math.round((labOcc + crOcc + libOcc) / 3)];
+      }
+
+      if (radarRes.status === 'fulfilled' && radarRes.value) {
+        const r = radarRes.value;
+        const high = r.highRiskCount || 0;
+        const med = r.mediumRiskCount || 0;
+        const low = r.lowRiskCount || 0;
+        const cohortSize = r.cohortSize || (high + med + low);
+        riskLabels = ['High Risk', 'Medium Risk', 'Low Risk', 'Safe Cohort'];
+        riskData = [high, med, low, Math.max(0, cohortSize - high - med)];
+      }
+    } catch (err) {
+      console.warn('Live analytics load fallback:', err);
+    }
+  }
+
+  chart('strategicAttendanceChart','line',{labels:attendanceLabels,datasets:[{label:'Attendance %',data:attendanceData,borderColor:palette.indigo,backgroundColor:'rgba(129,140,248,.14)',fill:true,tension:.38},{label:'Predicted %',data:predictedData,borderColor:palette.cyan,borderDash:[6,5],tension:.38} ]});
+  chart('strategicPerformanceChart','bar',{labels:perfLabels,datasets:[{label:'Average score',data:perfData,backgroundColor:[palette.indigo,palette.cyan,palette.green,palette.amber,palette.violet,palette.rose],borderRadius:7}]},{scales:{...chartBase.scales,y:{...chartBase.scales.y,min:0,max:100}}});
+  chart('strategicResourcesChart','doughnut',{labels:resourceLabels,datasets:[{data:resourceData,backgroundColor:[palette.indigo,palette.cyan,palette.green,palette.amber],borderWidth:0,hoverOffset:6}]},{cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'#cbd5e1',usePointStyle:true,padding:18}}}});
+  chart('strategicRiskChart','line',{labels:riskLabels,datasets:[{label:'Cohort Distribution',data:riskData,borderColor:palette.rose,backgroundColor:'rgba(251,113,133,.12)',fill:true,tension:.35}]});
  }
  const agentData=[
   {name:'Security Agent',role:'Threat detection & access control',icon:'fa-shield-halved',color:'rose',status:'Monitoring',detail:'Door-access anomaly scan completed. No critical threats detected.'},

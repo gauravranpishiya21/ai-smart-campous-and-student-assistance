@@ -16,27 +16,62 @@ require('./seed').ensureSeeded();
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) {
+    socket.user = null;
+    return next();
+  }
+  try {
+    const payload = jwt.verify(token, SECRET);
+    const user = db.prepare('SELECT id, roll_no, name, email, role, dept, year, semester FROM users WHERE id=?').get(payload.id);
+    if (!user) return next(new Error('User not found'));
+    socket.user = user;
+    return next();
+  } catch (err) {
+    return next(new Error('Invalid socket authentication token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  if (socket.user) {
+    socket.join(`user:${socket.user.id}`);
+    if (socket.user.role === 'admin' || socket.user.role === 'super_admin') {
+      socket.join('admins');
+    }
+  }
+});
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Universal Programmatic Middleware: Central AI Engine (Kernel Core v1.0)
-app.post('/api/ai-engine', (req, res, next) => {
-  const t = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!t) {
-    const envelope = {
-      user_id: req.body?.user_id || 1,
-      role: req.body?.role || 'student',
-      action_intent: req.body?.action_intent || req.body?.prompt || req.body?.message
-    };
-    const result = kernel.executeKernel(envelope);
-    return res.json({
-      ...result,
-      engine_output: JSON.stringify(result)
-    });
-  }
+// Security Headers Middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
+
+// Authentication Rate Limiter (Brute-Force Protection: max 25 attempts/minute)
+const authLimiterMap = new Map();
+function authRateLimiter(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const attempts = (authLimiterMap.get(ip) || []).filter((t) => now - t < windowMs);
+  if (attempts.length >= 25) {
+    return res.status(429).json({ message: 'Too many authentication attempts. Please try again in a minute.' });
+  }
+  attempts.push(now);
+  authLimiterMap.set(ip, attempts);
+  next();
+}
 
 // ---------- helpers ----------
 const api = express.Router();
@@ -54,7 +89,7 @@ function auth(req, res, next) {
 }
 
 // ---------- auth ----------
-api.post('/auth/login', h((req, res) => {
+api.post('/auth/login', authRateLimiter, h((req, res) => {
   const { id, password } = req.body || {};
   const u = db.prepare('SELECT * FROM users WHERE roll_no=? OR email=?').get(String(id || '').trim(), String(id || '').trim().toLowerCase());
   const ok = u && bcrypt.compareSync(String(password || ''), u.password_hash);
@@ -62,7 +97,7 @@ api.post('/auth/login', h((req, res) => {
   if (!ok) return bad(res, 'Invalid ID or password.', 401);
   res.json({ token: jwt.sign({ id: u.id }, SECRET, { expiresIn: '7d' }), user: publicUser(u) });
 }));
-api.post('/auth/register', h((req, res) => {
+api.post('/auth/register', authRateLimiter, h((req, res) => {
   const { name, roll_no, email, password, dept, year, semester } = req.body || {};
   if (!name || !roll_no || !email || String(password || '').length < 6) {
     return bad(res, 'Name, roll number, email and a password (6+ chars) are required.');
@@ -114,7 +149,7 @@ api.post('/auth/register', h((req, res) => {
   }
 }));
 api.get('/time', (req, res) => res.json({ now: new Date().toISOString() }));
-api.get('/ai/status', (req, res) => res.json({ llm: ai.llmAvailable(), model: ai.llmAvailable() ? (process.env.CLAUDE_MODEL || 'claude-sonnet-5-5') : 'offline-engine' }));
+api.get('/ai/status', (req, res) => res.json({ llm: ai.llmAvailable(), model: ai.llmAvailable() ? ai.getGeminiModel() : 'offline-engine', provider: ai.llmAvailable() ? 'google-gemini' : 'offline-engine' }));
 api.get('/project/blueprint-doc', (req, res) => res.json(smartSuite.getCompleteProjectDocumentation()));
 
 api.use(auth);
@@ -403,7 +438,13 @@ api.get('/digital-library/files/:id/:action', (req, res) => {
   res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `${req.params.action === 'download' ? 'attachment' : 'inline'}; filename="material-${f.id}.pdf"` }).send(makePdf(f.title, lines));
 });
 api.get('/library/history', (req, res) => res.json(rec.list('borrow', req.user.id)));
-api.post('/library/return/:id', h((req, res) => { rec.update(Number(req.params.id), { status: 'Returned' }); res.json({ message: 'Book returned.' }); }));
+api.post('/library/return/:id', h((req, res) => {
+  const id = Number(req.params.id);
+  const borrow = rec.get(id);
+  if (!borrow || borrow.user_id !== req.user.id) return bad(res, 'Borrow record not found.', 404);
+  rec.update(id, { status: 'Returned' });
+  res.json({ message: 'Book returned.' });
+}));
 
 // ---------- placement ----------
 api.get('/placement', (req, res) => {
@@ -433,10 +474,16 @@ api.post('/placement/certificates', h((req, res) => {
 
 // ---------- Central Core Execution Engine (Kernel Core v1.0) ----------
 api.post('/ai-engine', h(async (req, res) => {
+  const intent = req.body?.action_intent || req.body?.prompt || req.body?.message;
+  if (!intent || typeof intent !== 'string' || !intent.trim()) {
+    return bad(res, 'Action intent or query is required.');
+  }
+  // User identity and role are strictly derived from verified req.user.
+  // Never trust client-supplied user_id or role from request body.
   const envelope = {
-    user_id: req.body?.user_id || req.user?.id,
-    role: req.body?.role || req.user?.role || 'student',
-    action_intent: req.body?.action_intent || req.body?.prompt || req.body?.message,
+    user_id: req.user.id,
+    role: req.user.role,
+    action_intent: intent.trim(),
     user: req.user
   };
   const result = kernel.executeKernel(envelope);
@@ -447,10 +494,14 @@ api.post('/ai-engine', h(async (req, res) => {
 }));
 
 api.post('/ai/kernel-execute', h(async (req, res) => {
+  const intent = req.body?.action_intent || req.body?.prompt || req.body?.message;
+  if (!intent || typeof intent !== 'string' || !intent.trim()) {
+    return bad(res, 'Action intent or query is required.');
+  }
   const envelope = {
-    user_id: req.body?.user_id || req.user?.id,
-    role: req.body?.role || req.user?.role || 'student',
-    action_intent: req.body?.action_intent || req.body?.prompt || req.body?.message,
+    user_id: req.user.id,
+    role: req.user.role,
+    action_intent: intent.trim(),
     user: req.user
   };
   res.json(kernel.executeKernel(envelope));
@@ -670,7 +721,13 @@ api.post('/projects/:id/milestones', h((req, res) => {
   if (!req.body?.title) return bad(res, 'Milestone title required.');
   res.json(rec.add('milestone', req.user.id, { project_id: p.id, title: req.body.title, due: req.body.due || today(), done: false }));
 }));
-api.post('/projects/:id/milestones/:mid/toggle', h((req, res) => { const m = rec.get(Number(req.params.mid)); res.json(rec.update(m.id, { done: !m.done })); }));
+api.post('/projects/:id/milestones/:mid/toggle', h((req, res) => {
+  const p = own(req, req.params.id);
+  if (!p) return bad(res, 'Project not found.', 404);
+  const m = rec.get(Number(req.params.mid));
+  if (!m || m.project_id !== p.id || m.user_id !== req.user.id) return bad(res, 'Milestone not found.', 404);
+  res.json(rec.update(m.id, { done: !m.done }));
+}));
 api.post('/projects/:id/updates', h((req, res) => {
   const p = own(req, req.params.id); if (!p) return bad(res, 'Project not found.', 404);
   const v = Math.max(0, Math.min(100, Number(req.body?.value) || 0));

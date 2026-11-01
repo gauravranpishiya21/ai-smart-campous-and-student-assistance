@@ -810,7 +810,11 @@ function bookCampusResource(userId, { resourceType, resourceName, date, timeSlot
         booking: conflict
       };
     }
-    throw new Error(`Booking collision: ${resourceName} is already booked by another user on ${date} during ${timeSlot}. Please choose a different slot.`);
+    return {
+      success: false,
+      status: 'COLLISION',
+      message: `Booking collision: ${resourceName} is already booked by another user on ${date} during ${timeSlot}. Please choose a different slot.`
+    };
   }
 
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(userId);

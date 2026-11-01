@@ -1276,34 +1276,34 @@ tbody tr:hover {
   </div>
 </section> <section class="content-section hidden fade-in" id="academic-calendar">
   <!-- Command Header Banner -->
-  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 text-white shadow-xl border border-indigo-500/20 mb-8">
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 text-white shadow-xl border border-indigo-500/20 mb-6">
     <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
     <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
     <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
         <div class="flex flex-wrap items-center gap-2 mb-2">
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-300 border border-indigo-400/30">
-            <i class="fas fa-graduation-cap mr-1"></i> B.E. / B.Tech Autonomous Framework
+            <i class="fas fa-calendar-days mr-1"></i> Academic Session 2026–2027
           </span>
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 animate-pulse" id="calEnrolledYearBadge">
-            Enrolled: Year 2 (Sem 4)
+            Enrolled: Year 1 (Sem 1)
           </span>
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30">
             <i class="fas fa-certificate mr-1"></i> UGC 90-Day Mandate
           </span>
         </div>
         <h2 class="text-2xl md:text-3xl font-black tracking-tight text-white mb-2">
-          Annual Academic Calendar &amp; Institutional Working Mechanism
+          Annual Academic Calendar
         </h2>
         <p class="text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed" id="calBannerSubtitle">
-          Complete operational machinery for the 2026–2027 academic session: instructional teaching days, CIE/internal milestones, university exams, and year-specific deliverables.
+          Interactive university calendar: examination schedules, gazetted holidays, project reviews, and instructional milestones highlighted with dedicated color circles.
         </p>
       </div>
 
       <!-- Quick Action Controls -->
       <div class="flex flex-wrap md:flex-col gap-2 shrink-0">
         <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md" onclick="window.syncCalendarToPlanner()">
-          <i class="fas fa-bolt text-amber-300"></i> Sync Milestones to Study Planner
+          <i class="fas fa-bolt text-amber-300"></i> Sync to Study Planner
         </button>
         <button class="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 rounded-xl text-xs font-bold transition flex items-center gap-2" onclick="window.downloadAcademicIcs()">
           <i class="fas fa-calendar-arrow-down text-indigo-300"></i> Download iCal (.ics)
@@ -1313,19 +1313,288 @@ tbody tr:hover {
         </button>
       </div>
     </div>
+  </div>
 
-    <!-- Subview Navigation Row -->
-    <div class="relative z-10 flex flex-wrap items-center gap-2 pt-4 mt-6 border-t border-white/10 text-xs font-bold">
-      <span class="text-slate-400 mr-2 uppercase tracking-wider text-[11px]">Academic Views:</span>
-      <button class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold" onclick="showSection('academic-calendar')">
-        <i class="fas fa-calendar-days mr-1.5"></i> Academic Calendar
+  <!-- HIGHLIGHTED EVENT COLOR KEY & LEGEND -->
+  <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm mb-6">
+    <div class="flex flex-wrap items-center gap-3 sm:gap-4 md:gap-6 text-xs font-bold">
+      <span class="text-slate-400 uppercase tracking-wider text-[10px] flex items-center gap-1.5 font-black">
+        <i class="fas fa-palette text-indigo-500"></i> Calendar Color Key:
+      </span>
+      <span class="inline-flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-[#E10600] ring-2 ring-red-400/40 shadow-sm shadow-red-500"></span>
+        <span class="text-slate-800 dark:text-slate-200 font-extrabold">Exams &amp; CIE Tests</span>
+      </span>
+      <span class="inline-flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-[#10b981] ring-2 ring-emerald-400/40 shadow-sm shadow-emerald-500"></span>
+        <span class="text-slate-800 dark:text-slate-200 font-extrabold">Gazetted Holidays</span>
+      </span>
+      <span class="inline-flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-[#f59e0b] ring-2 ring-amber-400/40 shadow-sm shadow-amber-500"></span>
+        <span class="text-slate-800 dark:text-slate-200 font-extrabold">Project Reviews &amp; Vivas</span>
+      </span>
+      <span class="inline-flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-[#6366f1] ring-2 ring-indigo-400/40 shadow-sm shadow-indigo-500"></span>
+        <span class="text-slate-800 dark:text-slate-200 font-extrabold">Classes &amp; Workshops</span>
+      </span>
+      <span class="inline-flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-[#8b5cf6] ring-2 ring-purple-400/40 shadow-sm shadow-purple-500"></span>
+        <span class="text-slate-800 dark:text-slate-200 font-extrabold">Placements &amp; Events</span>
+      </span>
+    </div>
+    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <span class="w-3 h-3 rounded-full bg-slate-100 ring-4 ring-[#E10600] inline-block shadow-sm"></span>
+      <span class="font-bold text-slate-700 dark:text-slate-300">Today</span>
+    </div>
+  </div>
+
+  <!-- CALENDAR LAYOUT: 2-COLUMN SPLIT (Month Grid & Day Briefing) -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
+    <!-- Left Column: The Main Calendar View (8 Cols) -->
+    <div class="lg:col-span-8 space-y-6">
+      <!-- Calendar View Control Bar -->
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <!-- View Modes -->
+          <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+            <button class="cal-view-tab active px-3.5 py-2 rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition" id="tabView-month" onclick="window.switchCalendarView('month')">
+              <i class="fas fa-calendar-days mr-1.5"></i> Month Grid
+            </button>
+            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-year" onclick="window.switchCalendarView('year')">
+              <i class="fas fa-calendar mr-1.5"></i> 12-Month Matrix
+            </button>
+            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-agenda" onclick="window.switchCalendarView('agenda')">
+              <i class="fas fa-list-ul mr-1.5"></i> Schedule Agenda
+            </button>
+          </div>
+
+          <!-- Month Navigation / Jump Controls -->
+          <div class="flex items-center gap-2" id="calMonthNavControls">
+            <button class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center justify-center text-xs" onclick="window.changeCalendarMonth(-1)" title="Previous Month">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="text-sm font-extrabold text-slate-800 dark:text-white px-2 min-w-[140px] text-center" id="calCurrentMonthTitle">
+              November 2026
+            </span>
+            <button class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center justify-center text-xs" onclick="window.changeCalendarMonth(1)" title="Next Month">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+            <!-- Quick Month Jump Dropdown -->
+            <select class="form-input text-xs py-1 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" id="calMonthJumpSelect" onchange="window.jumpToSelectedMonth(this.value)">
+              <option value="2026-08">Aug 2026</option>
+              <option value="2026-09">Sep 2026</option>
+              <option value="2026-10">Oct 2026</option>
+              <option value="2026-11" selected>Nov 2026</option>
+              <option value="2026-12">Dec 2026</option>
+              <option value="2027-01">Jan 2027</option>
+              <option value="2027-02">Feb 2027</option>
+              <option value="2027-03">Mar 2027</option>
+              <option value="2027-04">Apr 2027</option>
+              <option value="2027-05">May 2027</option>
+            </select>
+            <button class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition" onclick="window.jumpToCalendarToday()">
+              Today
+            </button>
+          </div>
+        </div>
+
+        <!-- Category Legends & Filters -->
+        <div class="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-bold">
+          <span class="text-slate-400 uppercase tracking-wider text-[10px] mr-1">Filter Events:</span>
+          <button class="cal-cat-pill active px-2.5 py-1 rounded-full bg-slate-800 text-white dark:bg-slate-700 transition" onclick="window.filterCalendarCategory('all', this)">All</button>
+          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition" onclick="window.filterCalendarCategory('class', this)">
+            <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span> Instructional Classes
+          </button>
+          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition" onclick="window.filterCalendarCategory('exam', this)">
+            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block mr-1"></span> Exams &amp; Tests
+          </button>
+          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition" onclick="window.filterCalendarCategory('assignment', this)">
+            <span class="w-2 h-2 rounded-full bg-amber-500 inline-block mr-1"></span> Project Reviews &amp; Vivas
+          </button>
+          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition" onclick="window.filterCalendarCategory('holiday', this)">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-1"></span> Gazetted Holidays
+          </button>
+          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition" onclick="window.filterCalendarCategory('placement', this)">
+            <span class="w-2 h-2 rounded-full bg-purple-500 inline-block mr-1"></span> Placements &amp; Events
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1: PROPER MONTHLY CALENDAR GRID WITH HIGHLIGHTED CIRCLES -->
+      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm" id="calViewContainer-month">
+        <!-- 7 Weekday Headers -->
+        <div class="grid grid-cols-7 gap-1.5 text-center font-black text-xs text-slate-400 uppercase tracking-wider mb-3">
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Mon</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Tue</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Wed</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Thu</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Fri</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-indigo-500">Sat</div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-rose-500">Sun</div>
+        </div>
+
+        <!-- 7x5 or 7x6 Day Cells Matrix -->
+        <div class="grid grid-cols-7 gap-2" id="calMonthGrid">
+          <!-- Injected dynamically by renderCalendarMonthGrid() -->
+        </div>
+      </div>
+
+      <!-- VIEW 2: 12-MONTH YEAR MATRIX (Hidden by default) -->
+      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hidden" id="calViewContainer-year">
+        <div class="mb-4">
+          <h4 class="font-extrabold text-base text-slate-900 dark:text-white">Annual Academic Year Matrix (12 Months)</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Panoramic overview of Odd Semester, Even Semester, and Summer Recess periods.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="calYearMatrixGrid">
+          <!-- Injected dynamically by renderCalendarYearMatrix() -->
+        </div>
+      </div>
+
+      <!-- VIEW 3: SCHEDULE AGENDA LIST (Hidden by default) -->
+      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hidden" id="calViewContainer-agenda">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h4 class="font-extrabold text-base text-slate-900 dark:text-white">Institutional Schedule Agenda</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Chronological timeline of all academic sessions, tests, and events.</p>
+          </div>
+          <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400" id="calAgendaCount">0 Events</span>
+        </div>
+        <div class="space-y-3" id="calAgendaList">
+          <!-- Injected dynamically by renderCalendarAgenda() -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Day Schedule Drill-Down & Operational Briefing (4 Cols) -->
+    <div class="lg:col-span-4 space-y-6">
+      <!-- Selected Day Schedule & Event Details -->
+      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm sticky top-4">
+        <!-- Date Header -->
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400" id="calDayBriefingSub">Selected Date</span>
+            <h4 class="text-lg font-black text-slate-900 dark:text-white" id="calDayBriefingTitle">Wed, Nov 11, 2026</h4>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300" id="calDayInstructionalBadge">
+            Day #69 of 90
+          </span>
+        </div>
+
+        <!-- Lifecycle Stage Pill -->
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800 mb-4">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Current Academic Stage</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          </div>
+          <h5 class="text-xs font-bold text-slate-900 dark:text-white" id="calDayMechStage">Core Instruction Block</h5>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed" id="calDayMechNotes">Regular laboratory modules and classroom lectures.</p>
+        </div>
+
+        <!-- Detailed Events for Selected Day -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <h5 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Day Schedule &amp; Milestones</h5>
+            <span class="text-[10px] font-bold text-slate-400" id="calDayEventsCount">0 Events</span>
+          </div>
+          <div class="space-y-3" id="calDayEventsList">
+            <!-- Populated dynamically by selectCalendarDate() -->
+          </div>
+        </div>
+
+        <!-- Upcoming Exam Milestones Countdown -->
+        <div class="border-t border-slate-100 dark:border-slate-800 pt-4">
+          <h5 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Upcoming High-Stakes Deadlines</h5>
+          <div class="space-y-2" id="calUpcomingDeadlinesList">
+            <!-- Populated dynamically by renderUpcomingDeadlines() -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Operational KPI Metrics Bar -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="calKpiContainer">
+    <!-- Prescribed Instructional Days -->
+    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Instructional Mandate</span>
+        <span class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs"><i class="fas fa-calendar-check"></i></span>
+      </div>
+      <div class="flex items-baseline gap-2 mb-2">
+        <h3 class="text-2xl font-black text-slate-800 dark:text-white" id="kpiWorkingDaysVal">65 <span class="text-sm font-bold text-slate-400">/ 90 Days</span></h3>
+      </div>
+      <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mb-2">
+        <div class="bg-indigo-600 h-full rounded-full transition-all duration-700" id="kpiWorkingDaysBar" style="width: 72%"></div>
+      </div>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <span>UGC AICTE 90-Day Rule</span>
+        <strong class="text-indigo-600 dark:text-indigo-400" id="kpiWorkingDaysRemain">25 left</strong>
+      </p>
+    </div>
+
+    <!-- Active Working Mechanism Stage -->
+    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Current Lifecycle Phase</span>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">Active</span>
+      </div>
+      <h3 class="text-sm font-black text-slate-800 dark:text-white mb-1 truncate" id="kpiActivePhaseTitle">Mini-Project Review 1</h3>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2" id="kpiActivePhaseDesc">Architecture &amp; DB Schema verification for enrolled students.</p>
+      <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+        <i class="fas fa-check-circle text-xs"></i> <span>50% Implementation Milestone</span>
+      </div>
+    </div>
+
+    <!-- Upcoming Exam Countdown -->
+    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Next Assessment</span>
+        <span class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs"><i class="fas fa-file-pen"></i></span>
+      </div>
+      <h3 class="text-2xl font-black text-rose-600 dark:text-rose-400 mb-1" id="kpiExamCountdown">In 23 Days</h3>
+      <p class="text-xs font-bold text-slate-800 dark:text-white truncate" id="kpiExamTitle">CIE-2 / Model Pre-SEE</p>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1" id="kpiExamDate">Nov 23, 2026 · 50 Marks</p>
+    </div>
+
+    <!-- Attendance Audit Threshold -->
+    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Attendance Audit Gate</span>
+        <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs"><i class="fas fa-shield-halved"></i></span>
+      </div>
+      <div class="flex items-baseline gap-2 mb-1">
+        <h3 class="text-2xl font-black text-slate-800 dark:text-white" id="kpiAttendanceReq">≥ 75.0%</h3>
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Mandatory</span>
+      </div>
+      <p class="text-xs font-bold text-slate-700 dark:text-slate-300" id="kpiAttendanceAuditDate">Cutoff: Nov 25, 2026</p>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Shortage results in exam debarment.</p>
+    </div>
+  </div>
+
+  <!-- Institutional Working Mechanism (10-Stage Pipeline Flowchart) -->
+  <div class="mb-8 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            <i class="fas fa-arrows-split-up-and-left mr-1"></i> Academic Machinery
+          </span>
+        </div>
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2" id="calMechanismHeaderTitle">
+          Institutional Working Mechanism: Academic Pipeline
+        </h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400" id="calMechanismHeaderDesc">
+          Sequential 10-stage lifecycle mapping syllabus progress, assessment checkpoints, project deliverables, and university exams.
+        </p>
+      </div>
+      <button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-1.5 self-start md:self-auto" onclick="window.toggleMechanismView()">
+        <i class="fas fa-list-check" id="calMechToggleIcon"></i> <span id="calMechToggleText">Compact View</span>
       </button>
-      <button class="px-3 py-1.5 rounded-lg bg-white/10 text-slate-300 hover:bg-white/20 transition" onclick="showSection('timetable')">
-        <i class="fas fa-clock mr-1.5"></i> Timetable
-      </button>
-      <button class="px-3 py-1.5 rounded-lg bg-white/10 text-slate-300 hover:bg-white/20 transition" onclick="showSection('exam-schedule')">
-        <i class="fas fa-file-pen mr-1.5"></i> Exam Schedule
-      </button>
+    </div>
+
+    <!-- 10-Stage Horizontal Scrollable / Responsive Pipeline Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5" id="calMechanismPipeline">
+      <!-- Injected by renderWorkingMechanismPipeline() -->
     </div>
   </div>
 
@@ -1334,7 +1603,7 @@ tbody tr:hover {
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
       <div>
         <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <i class="fas fa-sitemap text-indigo-600"></i> Select Student Year &amp; Working Mechanism Track
+          <i class="fas fa-sitemap text-indigo-600"></i> Academic Cohort &amp; Working Mechanism Track
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400">
           The working mechanism, assessment phases, and project milestones dynamically adjust to your year.
@@ -1392,300 +1661,6 @@ tbody tr:hover {
         <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">4th Year Engineering</h4>
         <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Tier-1 Placements, Capstone Thesis Defense, IEEE Paper, Convocation.</p>
         <span class="cal-enrolled-pill text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mt-2 hidden" id="calEnrolledTag-4">Your Year</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Operational KPI Metrics Bar -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="calKpiContainer">
-    <!-- Prescribed Instructional Days -->
-    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Instructional Mandate</span>
-        <span class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs"><i class="fas fa-calendar-check"></i></span>
-      </div>
-      <div class="flex items-baseline gap-2 mb-2">
-        <h3 class="text-2xl font-black text-slate-800 dark:text-white" id="kpiWorkingDaysVal">65 <span class="text-sm font-bold text-slate-400">/ 90 Days</span></h3>
-      </div>
-      <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mb-2">
-        <div class="bg-indigo-600 h-full rounded-full transition-all duration-700" id="kpiWorkingDaysBar" style="width: 72%"></div>
-      </div>
-      <p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
-        <span>UGC AICTE 90-Day Rule</span>
-        <strong class="text-indigo-600 dark:text-indigo-400" id="kpiWorkingDaysRemain">25 left</strong>
-      </p>
-    </div>
-
-    <!-- Active Working Mechanism Stage -->
-    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Current Lifecycle Phase</span>
-        <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">Active</span>
-      </div>
-      <h3 class="text-sm font-black text-slate-800 dark:text-white mb-1 truncate" id="kpiActivePhaseTitle">Mini-Project Review 1</h3>
-      <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2" id="kpiActivePhaseDesc">Architecture &amp; DB Schema verification for 2nd year students.</p>
-      <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-        <i class="fas fa-check-circle text-xs"></i> <span>50% Implementation Milestone</span>
-      </div>
-    </div>
-
-    <!-- Upcoming Exam Countdown -->
-    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Next Assessment</span>
-        <span class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs"><i class="fas fa-file-pen"></i></span>
-      </div>
-      <h3 class="text-2xl font-black text-rose-600 dark:text-rose-400 mb-1" id="kpiExamCountdown">In 23 Days</h3>
-      <p class="text-xs font-bold text-slate-800 dark:text-white truncate" id="kpiExamTitle">CIE-2 / Model Pre-SEE</p>
-      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1" id="kpiExamDate">Nov 23, 2026 · 50 Marks</p>
-    </div>
-
-    <!-- Attendance Audit Threshold -->
-    <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Attendance Audit Gate</span>
-        <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs"><i class="fas fa-shield-halved"></i></span>
-      </div>
-      <div class="flex items-baseline gap-2 mb-1">
-        <h3 class="text-2xl font-black text-slate-800 dark:text-white" id="kpiAttendanceReq">≥ 75.0%</h3>
-        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Mandatory</span>
-      </div>
-      <p class="text-xs font-bold text-slate-700 dark:text-slate-300" id="kpiAttendanceAuditDate">Cutoff: Nov 25, 2026</p>
-      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Shortage results in exam debarment.</p>
-    </div>
-  </div>
-
-  <!-- Institutional Working Mechanism (10-Stage Pipeline Flowchart) -->
-  <div class="mb-8 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
-      <div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-            <i class="fas fa-arrows-split-up-and-left mr-1"></i> Academic Machinery
-          </span>
-        </div>
-        <h3 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2" id="calMechanismHeaderTitle">
-          Institutional Working Mechanism: 2nd Year Pipeline
-        </h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400" id="calMechanismHeaderDesc">
-          Sequential 10-stage lifecycle mapping syllabus progress, assessment checkpoints, project deliverables, and university exams.
-        </p>
-      </div>
-      <button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-1.5 self-start md:self-auto" onclick="window.toggleMechanismView()">
-        <i class="fas fa-list-check" id="calMechToggleIcon"></i> <span id="calMechToggleText">Compact View</span>
-      </button>
-    </div>
-
-    <!-- 10-Stage Horizontal Scrollable / Responsive Pipeline Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5" id="calMechanismPipeline">
-      <!-- Injected by renderWorkingMechanismPipeline() -->
-    </div>
-  </div>
-
-  <!-- ACTUAL Calendar Layout: 2-Column Split View -->
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-12">
-    <!-- Left Column: The Actual Calendar Grid (8 Cols) -->
-    <div class="lg:col-span-8 space-y-6">
-      <!-- Calendar View Control Bar -->
-      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-          <!-- View Modes -->
-          <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
-            <button class="cal-view-tab active px-3.5 py-2 rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition" id="tabView-month" onclick="window.switchCalendarView('month')">
-              <i class="fas fa-calendar-days mr-1.5"></i> Month Grid
-            </button>
-            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-year" onclick="window.switchCalendarView('year')">
-              <i class="fas fa-calendar mr-1.5"></i> 12-Month Matrix
-            </button>
-            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-agenda" onclick="window.switchCalendarView('agenda')">
-              <i class="fas fa-list-ul mr-1.5"></i> Schedule Agenda
-            </button>
-          </div>
-
-          <!-- Month Navigation / Jump Controls -->
-          <div class="flex items-center gap-2" id="calMonthNavControls">
-            <button class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center justify-center text-xs" onclick="window.changeCalendarMonth(-1)" title="Previous Month">
-              <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="text-sm font-extrabold text-slate-800 dark:text-white px-2 min-w-[140px] text-center" id="calCurrentMonthTitle">
-              November 2026
-            </span>
-            <button class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center justify-center text-xs" onclick="window.changeCalendarMonth(1)" title="Next Month">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-            <button class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition" onclick="window.jumpToCalendarToday()">
-              Today
-            </button>
-          </div>
-        </div>
-
-        <!-- Category Legends & Filters -->
-        <div class="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-bold">
-          <span class="text-slate-400 uppercase tracking-wider text-[10px] mr-1">Filter Events:</span>
-          <button class="cal-cat-pill active px-2.5 py-1 rounded-full bg-slate-800 text-white dark:bg-slate-700 transition" onclick="window.filterCalendarCategory('all', this)">All</button>
-          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition" onclick="window.filterCalendarCategory('class', this)">
-            <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span> Instructional Classes
-          </button>
-          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 transition" onclick="window.filterCalendarCategory('exam', this)">
-            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block mr-1"></span> Exams &amp; Tests
-          </button>
-          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition" onclick="window.filterCalendarCategory('assignment', this)">
-            <span class="w-2 h-2 rounded-full bg-amber-500 inline-block mr-1"></span> Project Reviews &amp; Vivas
-          </button>
-          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition" onclick="window.filterCalendarCategory('holiday', this)">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-1"></span> Gazetted Holidays
-          </button>
-          <button class="cal-cat-pill px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition" onclick="window.filterCalendarCategory('placement', this)">
-            <span class="w-2 h-2 rounded-full bg-purple-500 inline-block mr-1"></span> Placements &amp; Events
-          </button>
-        </div>
-      </div>
-
-      <!-- VIEW 1: ACTUAL MONTHLY CALENDAR GRID -->
-      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm" id="calViewContainer-month">
-        <!-- 7 Weekday Headers -->
-        <div class="grid grid-cols-7 gap-1 text-center font-black text-[11px] text-slate-400 uppercase tracking-wider mb-2">
-          <div class="p-2">Mon</div>
-          <div class="p-2">Tue</div>
-          <div class="p-2">Wed</div>
-          <div class="p-2">Thu</div>
-          <div class="p-2">Fri</div>
-          <div class="p-2 text-indigo-500">Sat</div>
-          <div class="p-2 text-rose-500">Sun</div>
-        </div>
-
-        <!-- 7x5 or 7x6 Day Cells Matrix -->
-        <div class="grid grid-cols-7 gap-1.5" id="calMonthGrid">
-          <!-- Injected dynamically by renderCalendarMonthGrid() -->
-        </div>
-      </div>
-
-      <!-- VIEW 2: 12-MONTH YEAR MATRIX (Hidden by default) -->
-      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hidden" id="calViewContainer-year">
-        <div class="mb-4">
-          <h4 class="font-extrabold text-base text-slate-900 dark:text-white">Annual Academic Year Matrix (12 Months)</h4>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Panoramic overview of Odd Semester, Even Semester, and Summer Recess periods.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="calYearMatrixGrid">
-          <!-- Injected dynamically by renderCalendarYearMatrix() -->
-        </div>
-      </div>
-
-      <!-- VIEW 3: SCHEDULE AGENDA LIST (Hidden by default) -->
-      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hidden" id="calViewContainer-agenda">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h4 class="font-extrabold text-base text-slate-900 dark:text-white">Institutional Schedule Agenda</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Chronological timeline of all academic sessions, tests, and events.</p>
-          </div>
-          <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400" id="calAgendaCount">0 Events</span>
-        </div>
-        <div class="space-y-3" id="calAgendaList">
-          <!-- Injected dynamically by renderCalendarAgenda() -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Column: Day Schedule Drill-Down & Operational Briefing (4 Cols) -->
-    <div class="lg:col-span-4 space-y-6">
-      <!-- Selected Day Schedule & Institutional Working Mechanism -->
-      <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm sticky top-4">
-        <!-- Date Header -->
-        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400" id="calDayBriefingSub">Selected Date</span>
-            <h4 class="text-lg font-black text-slate-900 dark:text-white" id="calDayBriefingTitle">Wed, Nov 11, 2026</h4>
-          </div>
-          <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300" id="calDayInstructionalBadge">
-            Day #69 of 90
-          </span>
-        </div>
-
-        <!-- Academic Mechanism Context Note -->
-        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 mb-5">
-          <p class="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1.5">
-            <i class="fas fa-gear"></i> Institutional Working Phase
-          </p>
-          <h5 class="text-xs font-bold text-slate-800 dark:text-white mb-1" id="calDayMechStage">Mini-Project Review 1</h5>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed" id="calDayMechNotes">
-            Verification of DB Schema, REST API endpoints, and Git logs for 2nd year students.
-          </p>
-        </div>
-
-        <!-- Events on this Day -->
-        <div class="mb-5">
-          <p class="text-xs font-black uppercase tracking-wider text-slate-400 mb-2.5 flex items-center justify-between">
-            <span>Scheduled Activities</span>
-            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold" id="calDayEventsCount">1 Event</span>
-          </p>
-          <div class="space-y-2.5" id="calDayEventsList">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-        <!-- Action: Add to Study Planner -->
-        <button class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-md shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 mb-4" onclick="window.addDayEventsToPlanner()">
-          <i class="fas fa-plus-circle"></i> Add Day's Tasks to Study Planner
-        </button>
-
-        <!-- Upcoming Immediate Milestones -->
-        <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
-          <p class="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-            <i class="fas fa-flag-checkered text-rose-500"></i> Next Institutional Deadlines
-          </p>
-          <div class="space-y-2.5" id="calUpcomingDeadlinesList">
-            <!-- Injected dynamically -->
-          </div>
-        </div>
-
-        <!-- Regulatory Charter Accordion -->
-        <div class="pt-4 mt-5 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <details class="group cursor-pointer">
-            <summary class="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between list-none">
-              <span class="flex items-center gap-1.5"><i class="fas fa-book-bookmark text-indigo-500"></i> Academic Regulations</span>
-              <i class="fas fa-chevron-down text-[10px] text-slate-400 group-open:rotate-180 transition"></i>
-            </summary>
-            <div class="mt-3 space-y-2 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
-              <p>• <strong>Attendance:</strong> Minimum 75.0% required in each course under UGC/AICTE norms.</p>
-              <p>• <strong>Evaluation Split:</strong> 50 Marks Continuous Internal Evaluation (CIE) + 50 Marks University SEE.</p>
-              <p>• <strong>Passing Rule:</strong> Minimum 40% aggregate in SEE with at least 35% in theory paper.</p>
-              <p>• <strong>Project Viva:</strong> Joint evaluation by internal guide and university external examiner.</p>
-            </div>
-          </details>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Event Detail Modal -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm hidden" id="calEventModal">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl p-6 md:p-8 relative">
-      <button class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 flex items-center justify-center transition" onclick="window.closeAcademicEventModal()">
-        <i class="fas fa-times"></i>
-      </button>
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-black px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800" id="modalCalType">Exam</span>
-        <span class="text-xs font-bold text-slate-500" id="modalCalDate">Nov 23, 2026</span>
-        <span class="text-xs font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700" id="modalCalWeight">50 Marks</span>
-      </div>
-      <h3 class="text-xl font-black text-slate-900 dark:text-white mb-2" id="modalCalTitle">Event Title</h3>
-      <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mb-4">
-        <span id="modalCalTime"><i class="fas fa-clock mr-1 text-indigo-500"></i> 10:00 AM</span>
-        <span id="modalCalLocation"><i class="fas fa-location-dot mr-1 text-rose-500"></i> Exam Hall</span>
-      </div>
-      <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 mb-5">
-        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-          <i class="fas fa-circle-info text-indigo-500"></i> Description &amp; Scope
-        </h4>
-        <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed" id="modalCalDesc">Details</p>
-      </div>
-      <div class="flex items-center justify-end gap-2.5">
-        <button class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition" onclick="window.closeAcademicEventModal()">
-          Close
-        </button>
-        <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-md flex items-center gap-1.5" id="modalCalPlannerBtn" onclick="window.addModalEventToPlanner()">
-          <i class="fas fa-plus"></i> Add to Study Planner
-        </button>
       </div>
     </div>
   </div>

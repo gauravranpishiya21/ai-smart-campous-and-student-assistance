@@ -793,12 +793,12 @@ function renderCalendarMonthGrid() {
   const titleEl = $('calCurrentMonthTitle');
   if (titleEl) titleEl.textContent = `${CAL_MONTHS[month]} ${year}`;
 
+  const jumpSel = $('calMonthJumpSelect');
+  if (jumpSel) jumpSel.value = `${year}-${String(month + 1).padStart(2, '0')}`;
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayWeekday = new Date(year, month, 1).getDay(); // 0 is Sunday
-  // Convert Sunday=0 to Monday=0 (Mon=0, Tue=1, ..., Sun=6)
-  const shiftIndex = (firstDayWeekday + 6) % 7;
-
-  // Previous month trailing days
+  const shiftIndex = (firstDayWeekday + 6) % 7; // Mon=0, Sun=6
   const prevMonthDays = new Date(year, month, 0).getDate();
 
   const allEvents = calState.data.events || [];
@@ -814,8 +814,8 @@ function renderCalendarMonthGrid() {
   for (let i = shiftIndex - 1; i >= 0; i--) {
     const dNum = prevMonthDays - i;
     html += `
-      <div class="min-h-[92px] p-2 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 opacity-30 select-none">
-        <span class="text-xs font-semibold text-slate-400">${dNum}</span>
+      <div class="min-h-[105px] p-2.5 rounded-2xl bg-slate-900/30 border border-slate-800/40 opacity-25 select-none flex flex-col justify-between">
+        <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-slate-500">${dNum}</span>
       </div>
     `;
   }
@@ -840,27 +840,84 @@ function renderCalendarMonthGrid() {
       dayEvents = dayEvents.filter(e => e.sem === 'even' || e.sem === 2 || e.sem === 4 || e.sem === 6 || e.sem === 8 || e.sem === 'all');
     }
 
-    // Determine cell border/ring styling
-    let cellClasses = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-indigo-400';
-    if (isSelected) {
-      cellClasses = 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-50/40 dark:bg-indigo-950/50 shadow-md';
-    } else if (isToday) {
-      cellClasses = 'border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20';
-    } else if (isSunday) {
-      cellClasses = 'border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60';
+    // Event category presence
+    const hasExam = dayEvents.some(e => e.type === 'exam');
+    const hasHoliday = dayEvents.some(e => e.type === 'holiday');
+    const hasAssignment = dayEvents.some(e => e.type === 'assignment');
+    const hasPlacement = dayEvents.some(e => e.type === 'placement' || e.type === 'meeting');
+    const hasClass = dayEvents.some(e => e.type === 'class');
+
+    // COLOR-CODED CIRCLE HIGHLIGHT FOR DATE
+    let circleHtml = '';
+    let cellBg = 'bg-slate-900/80 border-slate-800 hover:border-slate-600';
+    let typeBadge = '';
+
+    if (hasExam) {
+      // 🔴 RED CIRCLE for Exam / CIE tests
+      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#E10600] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-red-600/50 ring-2 ring-red-400/50 animate-pulse">${day}</div>`;
+      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">Exam</span>`;
+      cellBg = 'bg-gradient-to-b from-red-950/30 to-slate-900/90 border-red-500/50 hover:border-red-400 shadow-sm shadow-red-950/40';
+    } else if (hasHoliday) {
+      // 🟢 GREEN CIRCLE for Gazetted & Festival Holidays
+      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#10b981] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-emerald-600/50 ring-2 ring-emerald-400/50">${day}</div>`;
+      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Holiday</span>`;
+      cellBg = 'bg-gradient-to-b from-emerald-950/30 to-slate-900/90 border-emerald-500/50 hover:border-emerald-400 shadow-sm shadow-emerald-950/40';
+    } else if (hasAssignment) {
+      // 🟠 AMBER CIRCLE for Project Reviews & Vivas
+      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#f59e0b] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-amber-600/50 ring-2 ring-amber-400/50">${day}</div>`;
+      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">Review</span>`;
+      cellBg = 'bg-gradient-to-b from-amber-950/30 to-slate-900/90 border-amber-500/50 hover:border-amber-400 shadow-sm shadow-amber-950/40';
+    } else if (hasPlacement) {
+      // 🟣 PURPLE CIRCLE for Placements & Campus Events
+      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#8b5cf6] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-purple-600/50 ring-2 ring-purple-400/50">${day}</div>`;
+      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30">Event</span>`;
+      cellBg = 'bg-gradient-to-b from-purple-950/30 to-slate-900/90 border-purple-500/50 hover:border-purple-400 shadow-sm shadow-purple-950/40';
+    } else if (hasClass) {
+      // 🔵 INDIGO CIRCLE for Classes & Academic Milestones
+      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#6366f1] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-indigo-600/50 ring-2 ring-indigo-400/50">${day}</div>`;
+      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Academic</span>`;
+      cellBg = 'bg-gradient-to-b from-indigo-950/30 to-slate-900/90 border-indigo-500/50 hover:border-indigo-400 shadow-sm shadow-indigo-950/40';
+    } else {
+      // Regular Days
+      if (isToday) {
+        circleHtml = `<div class="w-7 h-7 rounded-full bg-slate-100 text-slate-900 font-black flex items-center justify-center text-xs ring-4 ring-[#E10600] shadow-md shadow-red-500/30">${day}</div>`;
+        typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">Today</span>`;
+        cellBg = 'bg-slate-900 border-red-500/60 shadow-md';
+      } else if (isSunday) {
+        circleHtml = `<div class="w-7 h-7 rounded-full bg-rose-950/30 text-rose-400 font-bold flex items-center justify-center text-xs">${day}</div>`;
+        cellBg = 'bg-slate-900/50 border-slate-800/80';
+      } else {
+        circleHtml = `<div class="w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 font-medium flex items-center justify-center text-xs hover:bg-slate-700 transition">${day}</div>`;
+        typeBadge = `<span class="text-[9px] font-bold text-slate-500">Lecture</span>`;
+      }
     }
 
-    // Badges / pills rendering
+    // Selected cell ring highlight
+    let selectHighlight = '';
+    if (isSelected) {
+      selectHighlight = 'ring-2 ring-white shadow-xl scale-[1.02] z-10 border-white/80';
+    }
+
+    // Mini Colored Dot Indicators for multiple event types
+    const dots = [];
+    if (hasExam) dots.push('<span class="w-2 h-2 rounded-full bg-[#E10600] shadow-sm shadow-red-500" title="Exam"></span>');
+    if (hasHoliday) dots.push('<span class="w-2 h-2 rounded-full bg-[#10b981] shadow-sm shadow-emerald-500" title="Holiday"></span>');
+    if (hasAssignment) dots.push('<span class="w-2 h-2 rounded-full bg-[#f59e0b] shadow-sm shadow-amber-500" title="Review"></span>');
+    if (hasPlacement) dots.push('<span class="w-2 h-2 rounded-full bg-[#8b5cf6] shadow-sm shadow-purple-500" title="Event"></span>');
+    if (hasClass && !hasExam && !hasHoliday && !hasAssignment && !hasPlacement) dots.push('<span class="w-2 h-2 rounded-full bg-[#6366f1] shadow-sm shadow-indigo-500" title="Class"></span>');
+    const dotsHtml = dots.length > 1 ? `<div class="flex items-center gap-1 mt-1">${dots.join('')}</div>` : '';
+
+    // Badges / Event Titles inside the day card
     let pillsHtml = '';
     dayEvents.slice(0, 2).forEach(ev => {
-      let badgeColor = 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300';
-      if (ev.type === 'exam') badgeColor = 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-extrabold';
-      else if (ev.type === 'assignment') badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold';
-      else if (ev.type === 'holiday') badgeColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold';
-      else if (ev.type === 'placement') badgeColor = 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-bold';
+      let badgeStyle = 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
+      if (ev.type === 'exam') badgeStyle = 'bg-red-500/20 text-red-300 border-red-500/40 font-bold';
+      else if (ev.type === 'holiday') badgeStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold';
+      else if (ev.type === 'assignment') badgeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold';
+      else if (ev.type === 'placement' || ev.type === 'meeting') badgeStyle = 'bg-purple-500/20 text-purple-300 border-purple-500/40 font-bold';
 
       pillsHtml += `
-        <div class="px-1.5 py-0.5 rounded text-[10px] truncate ${badgeColor}" title="${esc(ev.title)}">
+        <div class="px-1.5 py-0.5 rounded text-[10px] truncate border ${badgeStyle}" title="${esc(ev.title)}">
           ${esc(ev.title)}
         </div>
       `;
@@ -868,27 +925,22 @@ function renderCalendarMonthGrid() {
 
     if (dayEvents.length > 2) {
       pillsHtml += `
-        <div class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 text-right pr-1">
+        <div class="text-[9px] font-bold text-red-400 text-right pr-1">
           +${dayEvents.length - 2} more
         </div>
       `;
     }
 
-    // Instructional Day indicator (if regular teaching day Mon-Fri)
-    let instTag = '';
-    if (!isSunday && dayEvents.length === 0) {
-      instTag = `<span class="text-[9px] font-bold text-slate-300 dark:text-slate-600">Lecture</span>`;
-    }
-
     html += `
-      <div class="cal-day-cell min-h-[96px] p-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${cellClasses}" onclick="window.selectCalendarDate('${dateStr}')">
-        <div class="flex items-center justify-between mb-1">
-          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${isToday ? 'bg-indigo-600 text-white' : (isSunday ? 'text-rose-500' : 'text-slate-800 dark:text-white')}">
-            ${day}
-          </span>
-          ${instTag}
+      <div class="cal-day-cell min-h-[105px] p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${cellBg} ${selectHighlight}" onclick="window.selectCalendarDate('${dateStr}')">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            ${circleHtml}
+            ${typeBadge}
+          </div>
+          ${dotsHtml}
         </div>
-        <div class="space-y-1 overflow-hidden">
+        <div class="space-y-1 mt-1 overflow-hidden">
           ${pillsHtml}
         </div>
       </div>
@@ -900,15 +952,14 @@ function renderCalendarMonthGrid() {
   const trailingCells = (7 - (totalRendered % 7)) % 7;
   for (let i = 1; i <= trailingCells; i++) {
     html += `
-      <div class="min-h-[92px] p-2 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 opacity-30 select-none">
-        <span class="text-xs font-semibold text-slate-400">${i}</span>
+      <div class="min-h-[105px] p-2.5 rounded-2xl bg-slate-900/30 border border-slate-800/40 opacity-25 select-none flex flex-col justify-between">
+        <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-slate-500">${i}</span>
       </div>
     `;
   }
 
   grid.innerHTML = html;
 }
-
 function renderCalendarYearMatrix() {
   const container = $('calYearMatrixGrid');
   if (!container || !calState.data) return;
@@ -1041,13 +1092,16 @@ window.selectCalendarDate = function (dateStr) {
   const titleEl = $('calDayBriefingTitle');
   if (titleEl) titleEl.textContent = fdateFull(dateStr);
 
+  // Re-render month grid to reflect active circle highlight
+  renderCalendarMonthGrid();
+
   if (!calState.data) return;
 
   const allEvents = calState.data.events || [];
   const dayEvents = allEvents.filter(e => e.date === dateStr);
 
   const countEl = $('calDayEventsCount');
-  if (countEl) countEl.textContent = `${dayEvents.length} Activity${dayEvents.length === 1 ? '' : 'ies'}`;
+  if (countEl) countEl.textContent = `${dayEvents.length} Event${dayEvents.length === 1 ? '' : 's'}`;
 
   // Calculate day index relative to Aug 01, 2026
   const startDate = new Date('2026-08-01T00:00:00');
@@ -1056,7 +1110,21 @@ window.selectCalendarDate = function (dateStr) {
   const dayIndex = Math.min(90, Math.max(1, Math.round(diffDays * (5 / 7))));
 
   const badgeEl = $('calDayInstructionalBadge');
-  if (badgeEl) badgeEl.textContent = `Day #${dayIndex} of 90`;
+  if (badgeEl) {
+    if (dayEvents.some(e => e.type === 'holiday')) {
+      badgeEl.textContent = 'Holiday / Break';
+      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    } else if (dayEvents.some(e => e.type === 'exam')) {
+      badgeEl.textContent = 'Examination Gate';
+      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30';
+    } else if (dayEvents.some(e => e.type === 'assignment')) {
+      badgeEl.textContent = 'Project Milestone';
+      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    } else {
+      badgeEl.textContent = `Day #${dayIndex} of 90`;
+      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+    }
+  }
 
   // Determine stage context for this date
   const mech = calState.data.mechanism;
@@ -1068,36 +1136,64 @@ window.selectCalendarDate = function (dateStr) {
     notesEl.textContent = stage.details;
   }
 
-  // Populate events list for this day
+  // Populate events list for this day with colored circle badges
   const listEl = $('calDayEventsList');
   if (listEl) {
     if (!dayEvents.length) {
       listEl.innerHTML = `
-        <div class="p-3.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
-          <p class="text-xs text-slate-400 font-medium">Regular instructional timetable schedule.</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">No examinations or project deadlines on this day.</p>
+        <div class="p-5 rounded-2xl border border-dashed border-slate-700/80 bg-slate-800/40 text-center">
+          <span class="w-10 h-10 rounded-full bg-slate-700/60 text-slate-300 font-bold flex items-center justify-center mx-auto mb-2.5 text-base">
+            <i class="fas fa-chalkboard"></i>
+          </span>
+          <p class="text-xs text-slate-300 font-bold">Standard Instructional Timetable Day</p>
+          <p class="text-[11px] text-slate-400 mt-1">Regular lectures and laboratory sessions are in progress as per timetable.</p>
         </div>
       `;
     } else {
-      listEl.innerHTML = dayEvents.map(e => `
-        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-start justify-between gap-2.5">
-          <div>
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">${esc(e.type)}</span>
-              <span class="text-[10px] font-bold text-slate-500">${esc(e.time || '09:00 AM')}</span>
+      const circleMap = {
+        exam: { bg: 'bg-[#E10600]', ring: 'ring-red-400/40', shadow: 'shadow-red-500/40', icon: 'fa-file-pen', label: 'EXAMINATION' },
+        holiday: { bg: 'bg-[#10b981]', ring: 'ring-emerald-400/40', shadow: 'shadow-emerald-500/40', icon: 'fa-umbrella-beach', label: 'GAZETTED HOLIDAY' },
+        assignment: { bg: 'bg-[#f59e0b]', ring: 'ring-amber-400/40', shadow: 'shadow-amber-500/40', icon: 'fa-list-check', label: 'PROJECT REVIEW' },
+        placement: { bg: 'bg-[#8b5cf6]', ring: 'ring-purple-400/40', shadow: 'shadow-purple-500/40', icon: 'fa-briefcase', label: 'PLACEMENT' },
+        meeting: { bg: 'bg-[#8b5cf6]', ring: 'ring-purple-400/40', shadow: 'shadow-purple-500/40', icon: 'fa-trophy', label: 'CAMPUS EVENT' },
+        class: { bg: 'bg-[#6366f1]', ring: 'ring-indigo-400/40', shadow: 'shadow-indigo-500/40', icon: 'fa-book-open', label: 'ACADEMIC CLASS' }
+      };
+
+      listEl.innerHTML = dayEvents.map(e => {
+        const c = circleMap[e.type] || circleMap.class;
+        return `
+          <div class="p-3.5 rounded-2xl border border-slate-700/80 bg-slate-800/70 shadow-sm flex items-start gap-3 transition hover:border-slate-500">
+            <span class="w-8 h-8 rounded-full ${c.bg} text-white font-black flex items-center justify-center text-xs shrink-0 shadow-md ${c.shadow} ring-2 ${c.ring} mt-0.5">
+              <i class="fas ${c.icon}"></i>
+            </span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 mb-1">
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${c.bg}/20 text-slate-200 border border-slate-600">${c.label}</span>
+                <span class="text-[10px] font-bold text-slate-400">${esc(e.time || '09:00 AM')}</span>
+              </div>
+              <h5 class="text-xs font-black text-white mb-1 leading-snug">${esc(e.title)}</h5>
+              <p class="text-[11px] text-slate-300 leading-relaxed mb-2">${esc(e.details || e.desc || '')}</p>
+              <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 border-t border-slate-700/60 pt-2">
+                <span><i class="fas fa-location-dot mr-1 text-slate-400"></i> ${esc(e.location || 'Campus')}</span>
+                ${e.weight ? `<span class="px-1.5 py-0.5 rounded bg-slate-700/80 text-slate-200 font-bold">${esc(e.weight)}</span>` : ''}
+              </div>
             </div>
-            <h5 class="text-xs font-bold text-slate-900 dark:text-white mb-0.5">${esc(e.title)}</h5>
-            <p class="text-[10px] text-slate-500 dark:text-slate-400"><i class="fas fa-location-dot mr-1"></i> ${esc(e.location || 'Campus')}</p>
+            <button class="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center text-xs shrink-0 transition" title="View details" onclick="window.openAcademicEventModal('${e.id}')">
+              <i class="fas fa-arrow-up-right-from-square"></i>
+            </button>
           </div>
-          <button class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0 transition" title="Inspect" onclick="window.openAcademicEventModal('${e.id}')">
-            <i class="fas fa-arrow-up-right-from-square"></i>
-          </button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   }
 };
 
+window.jumpToSelectedMonth = function (val) {
+  if (!val) return;
+  const [yStr, mStr] = val.split('-');
+  calState.currentMonth = new Date(Number(yStr), Number(mStr) - 1, 1);
+  renderCalendarMonthGrid();
+};
 function renderUpcomingDeadlines() {
   const container = $('calUpcomingDeadlinesList');
   if (!container || !calState.data) return;

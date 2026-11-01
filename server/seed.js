@@ -148,23 +148,25 @@ function seed() {
     db.prepare('SELECT id, code FROM subjects').all().forEach(s => { subjectMap[s.code] = s.id; });
   }
 
-  // 6. Seed Attendance and Marks across both Sem 1 (1st Year) and Sem 4 (2nd Year)
-  const cohortSubjects = db.prepare('SELECT * FROM subjects WHERE sem IN (1, 4)').all();
+  // 6. Seed Attendance and Marks strictly mapped to enrolled semester (Sem 1 for Freshman, Sem 4 for Sophomore)
   const allStudents = [...cseUserIds, ...itUserIds, { id: freshmanId, roll: '2026CS0001' }];
 
   allStudents.forEach((student, sIdx) => {
+    const isFreshman = (student.roll === '2026CS0001');
+    const targetSem = isFreshman ? 1 : 4;
+    const studentSubjects = db.prepare('SELECT * FROM subjects WHERE sem = ?').all(targetSem);
     const isDeficit = (student.roll === '2024CS0068' || student.roll === '2024CS0098' || student.roll === '2024IT0005' || student.roll === '2024IT0009');
     const baseRate = isDeficit ? 0.65 : (student.roll === '2024CS0042' ? 0.82 : (student.roll === '2026CS0001' ? 0.85 : (0.78 + (sIdx % 10) * 0.015)));
 
-    cohortSubjects.forEach((sub, subIdx) => {
+    studentSubjects.forEach((sub, subIdx) => {
       const total = 40 + (subIdx * 2);
       const attended = Math.round(total * (baseRate + (subIdx % 3 === 0 ? 0.03 : -0.02)));
       db.prepare('INSERT OR IGNORE INTO attendance(user_id, subject_id, attended, total) VALUES(?, ?, ?, ?)')
         .run(student.id, sub.id, attended, total);
 
-      // Marks
+      // Marks: Freshmen are currently active in Sem 1 (endsem not yet conducted)
       const internal = 21 + (sIdx % 4) + (subIdx % 3);
-      const endsem = 55 + (sIdx % 12) + (subIdx % 6);
+      const endsem = isFreshman ? null : (55 + (sIdx % 12) + (subIdx % 6));
       db.prepare('INSERT OR IGNORE INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, ?, ?, ?)')
         .run(student.id, sub.id, internal, endsem, 4, 5);
     });

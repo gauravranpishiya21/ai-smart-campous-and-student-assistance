@@ -177,6 +177,11 @@ async function boot() {
   try { me = await api('/auth/me'); } catch { return; }
   $('studentName').textContent = me.name;
   const topName = $('topHeaderStudentName'); if (topName) topName.textContent = me.name ? me.name.split(' ')[0] : 'Profile';
+  const cohortBadge = $('studentCohortBadge');
+  if (cohortBadge) {
+    cohortBadge.textContent = (me.role === 'admin' || me.role === 'super_admin') ? 'Administrator' : ('Year ' + (me.year || 1) + ' • Sem ' + (me.semester || 1));
+  }
+  syncDoubtSolverSubjects();
   if (me.role === 'admin' || me.role === 'super_admin') {
     const adminShortcut = $('adminShortcutContainer');
     if (adminShortcut) {
@@ -429,6 +434,9 @@ window.loaders['syllabus-roadmap'] = async function () {
   filterSyllabusYear(sylYear ?? syl.enrolledYear); loadTimeline('all');
 };
 window.filterSyllabusYear = (y) => {
+  if (me && me.role === 'student') {
+    y = me.year || 1;
+  }
   sylYear = y; if (!syl) return;
   const sems = y === 'all' ? syl.semesters : syl.semesters.filter((s) => s.sem === y * 2 - 1 || s.sem === y * 2);
   [1, 2, 3, 4, 'all'].forEach((n) => { const b = $('tab-year-' + n); if (b) b.classList.toggle('bg-indigo-600', n === y), b?.classList.toggle('text-white', n === y); const nd = $('node-year-' + n); if (nd) nd.style.outline = n === y ? '2px solid #6366f1' : ''; });
@@ -1222,7 +1230,18 @@ window.printAcademicCalendar = function () {
 
 // ---------- curriculum / OBE ----------
 window.loaders.curriculum = window.loadCurriculum = async function () {
-  const c = await api('/curriculum?sem=' + (val('curriculumSemFilter') || 4));
+  const filter = $('curriculumSemFilter');
+  if (filter && me && me.role === 'student') {
+    const y = me.year || Math.ceil((me.semester || 1) / 2);
+    const semA = y * 2 - 1, semB = y * 2;
+    if (!filter.dataset.cohortConfigured || filter.dataset.cohortConfigured !== String(y)) {
+      filter.innerHTML = `<option value="${semA}">Semester ${semA} (Year ${y})</option><option value="${semB}">Semester ${semB} (Year ${y})</option>`;
+      filter.value = String(me.semester || semA);
+      filter.dataset.cohortConfigured = String(y);
+    }
+  }
+  const currentSem = (filter && filter.value) ? filter.value : (me?.semester || 1);
+  const c = await api('/curriculum?sem=' + currentSem);
   $('curriculumCgpa').textContent = c.cgpa?.toFixed(2) ?? '--'; $('curriculumCredits').textContent = c.credits; $('curriculumBacklogs').textContent = c.backlogs;
   $('curriculumGrid').innerHTML = c.subjects.map((s) => `<button type="button" class="text-left w-full border rounded-xl p-3 mb-2 hover:border-indigo-400" onclick='showOutcomes(${JSON.stringify(s).replace(/'/g, '&#39;')})'><b>${esc(s.code)} · ${esc(s.name)}</b><p class="text-xs text-gray-400">${s.credits} credits ${s.grade ? '· Grade ' + s.grade : s.internal != null ? '· Internal ' + s.internal + '/25' : ''}</p></button>`).join('');
 };

@@ -2527,4 +2527,20 @@ window.plannerSetDoubt = q => { const el = document.getElementById('doubtText');
 </div>
 
 
+
+    <script>
+        /* Smooth Sidebar Wheel Scroll Delegation */
+        (function () {
+            var sb = document.getElementById('sidebar');
+            if (!sb) return;
+            var nav = sb.querySelector('nav');
+            if (!nav) return;
+            sb.addEventListener('wheel', function (e) {
+                if (nav.scrollHeight > nav.clientHeight) {
+                    nav.scrollTop += e.deltaY;
+                }
+            }, { passive: true });
+        })();
+    </script>
+
 </body> </html>

@@ -423,13 +423,25 @@ async function doubtSolve(subject, text) {
 function nextClass(user) {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const today = days[new Date().getDay()];
-  const tt = rec.list('timetable', null, { order: 'ASC' }).find((d) => d.day === today);
-  if (!tt) return null;
+  if (today === 'Sun' || today === 'Sat') return null;
+  const sem = user?.semester || 1;
+  const subs = db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY id').all(sem);
+  if (!subs.length) return null;
+  const dIdx = Math.max(0, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].indexOf(today));
+  const rooms = sem <= 2
+    ? ['Hall 101', 'Hall 102', 'Physics Lab', 'Computing Lab 1']
+    : ['Hall 201', 'Hall 202', 'Networks Lab', 'Systems Lab'];
+  const slots = [
+    { subject: subs[(dIdx) % subs.length]?.name || 'Lecture', faculty: subs[(dIdx) % subs.length]?.faculty || 'Faculty', room: rooms[0] },
+    { subject: subs[(dIdx + 1) % subs.length]?.name || 'Lecture', faculty: subs[(dIdx + 1) % subs.length]?.faculty || 'Faculty', room: rooms[1] },
+    { subject: subs[(dIdx + 2) % subs.length]?.name || 'Lecture', faculty: subs[(dIdx + 2) % subs.length]?.faculty || 'Faculty', room: rooms[2] },
+    { subject: subs[(dIdx + 3) % subs.length]?.name || 'Lecture', faculty: subs[(dIdx + 3) % subs.length]?.faculty || 'Faculty', room: rooms[3] }
+  ];
   const h = new Date().getHours() + new Date().getMinutes() / 60;
-  const starts = [9, 10.75, 13, 13.5, 15.25];
-  const idx = tt.slots.findIndex((_, i) => starts[i] > h);
-  const s = idx >= 0 ? tt.slots[idx] : null;
-  return s ? { ...s, start: ['09:00', '10:45', '13:30', '15:15'][idx] ?? '', day: today } : null;
+  const starts = [9, 10.75, 13, 14.5];
+  const idx = starts.findIndex((t) => t > h);
+  const s = idx >= 0 ? slots[idx] : null;
+  return s ? { ...s, start: ['09:00', '10:45', '13:00', '14:30'][idx] ?? '', day: today } : null;
 }
 function chatLocal(userId, msg) {
   const snap = snapshot(userId), f = forecast(snap), rk = risk(snap), c = recordedCgpa(userId);
@@ -504,8 +516,14 @@ async function plannerChat(userId, history, msg) {
   }
 
   // Detect weaker subjects
-  let weakSubjects = p.weakSubjects || ['Deep Learning', 'Natural Language Processing', 'Internet of Things', 'Cyber Security', 'Project Phase I'];
+  const studentSubs = (snap.subjects && snap.subjects.length) ? snap.subjects.map((s) => s.name) : [];
+  let weakSubjects = p.weakSubjects || (studentSubs.length ? studentSubs : ['Engineering Mathematics I', 'Programming in C', 'Engineering Physics']);
   const candidates = [
+    { key: 'programming in c', name: 'Programming in C' },
+    { key: 'c programming', name: 'Programming in C' },
+    { key: 'physics', name: 'Engineering Physics' },
+    { key: 'basic electrical', name: 'Basic Electrical Engineering' },
+    { key: 'communication skills', name: 'Communication Skills' },
     { key: 'deep learning', name: 'Deep Learning' },
     { key: 'natural language processing', name: 'Natural Language Processing' },
     { key: 'nlp', name: 'Natural Language Processing' },

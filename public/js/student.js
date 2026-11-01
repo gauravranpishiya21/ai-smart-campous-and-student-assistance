@@ -1576,3 +1576,105 @@ window.setStudyMaterialFilter = setStudyMaterialFilter;
 window.downloadStudyMaterial = downloadStudyMaterial;
 window.loaders = window.loaders || {};
 window.loaders.learning = loadStudyMaterials;
+
+
+// ---------- Student Profile & Academic Cohort Controller ----------
+window.loaders = window.loaders || {};
+window.loaders.profile = window.loadProfile = async function () {
+  try {
+    const res = await api('/profile');
+    const u = res.user;
+    const acad = res.academic;
+
+    if ($('profileCardName')) $('profileCardName').textContent = u.name || 'Student';
+    if ($('profileCardYearSem')) $('profileCardYearSem').textContent = `Year ${u.year} · Sem ${u.semester}`;
+    if ($('profileCardDept')) $('profileCardDept').textContent = `Department of ${u.dept || 'Engineering'}`;
+    if ($('profileCardRoll')) $('profileCardRoll').textContent = u.roll_no || '--';
+
+    if ($('profileEmailVal')) $('profileEmailVal').textContent = u.email || '--';
+    if ($('profileProgramVal')) $('profileProgramVal').textContent = `B.Tech - ${u.dept || 'Computer Science & Engineering'}`;
+    if ($('profileYearVal')) $('profileYearVal').textContent = `Year ${u.year}`;
+    if ($('profileSemVal')) $('profileSemVal').textContent = `Semester ${u.semester}`;
+
+    if ($('profileCgpaVal')) $('profileCgpaVal').textContent = acad?.cgpa ? acad.cgpa.toFixed(2) : '8.80';
+    if ($('profileAttVal')) $('profileAttVal').textContent = (acad?.attendance ? Math.round(acad.attendance) : 85) + '%';
+    if ($('profileSubjectCount')) $('profileSubjectCount').textContent = (acad?.subjectsCount || 5) + ' Courses';
+
+    const phoneInput = $('profilePhoneInput');
+    if (phoneInput) phoneInput.value = u.phone || '';
+    const bioInput = $('profileBioInput');
+    if (bioInput) bioInput.value = u.bio || '';
+
+    const cohortSelect = $('profileCohortSelect');
+    if (cohortSelect) cohortSelect.value = String(u.semester || 1);
+
+    // Enrolled cohort subjects
+    const subjRes = await api('/academics/subjects');
+    const list = $('profileEnrolledSubjectsList');
+    if (list && subjRes.subjects) {
+      list.innerHTML = subjRes.subjects.map(s => `
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-700/60" style="background: rgba(30, 30, 30, 0.7);">
+          <div>
+            <span class="text-[10px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-500/30">${esc(s.code)}</span>
+            <p class="text-xs font-bold text-slate-100 mt-1">${esc(s.name)}</p>
+          </div>
+          <span class="text-xs font-bold text-slate-400">${s.credits} Credits</span>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load profile:', err);
+  }
+};
+
+window.handleProfileSubmit = async function (e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const phone = $('profilePhoneInput')?.value || '';
+  const bio = $('profileBioInput')?.value || '';
+  const sem = $('profileCohortSelect')?.value;
+
+  try {
+    const res = await api('/profile', {
+      method: 'PUT',
+      body: { phone, bio, semester: sem }
+    });
+    toast('Profile & Academic Cohort updated successfully!', 'success');
+
+    // Refresh authenticated user identity
+    me = await api('/auth/me');
+    if ($('studentName')) $('studentName').textContent = me.name;
+    const topName = $('topHeaderStudentName');
+    if (topName) topName.textContent = me.name ? me.name.split(' ')[0] : 'Profile';
+    const cohortBadge = $('studentCohortBadge');
+    if (cohortBadge) {
+      cohortBadge.textContent = (me.role === 'admin' || me.role === 'super_admin') ? 'Administrator' : ('Year ' + (me.year || 1) + ' · Sem ' + (me.semester || 1));
+    }
+
+    await window.loadProfile();
+
+    // Reload cohort-dependent views
+    if (window.loaders.dashboard) window.loaders.dashboard();
+    if (window.loadStudyMaterials) window.loadStudyMaterials();
+    if (window.loadDigitalStudyMaterials) window.loadDigitalStudyMaterials();
+    if (window.loaders.timetable) window.loaders.timetable();
+    if (window.loaders.curriculum) window.loaders.curriculum();
+    if (window.loaders.notices) window.loaders.notices();
+    if (window.loaders['academic-calendar']) window.loaders['academic-calendar'](me.year, me.semester);
+    if (window.loaders['syllabus-roadmap']) window.loaders['syllabus-roadmap']();
+    syncDoubtSolverSubjects();
+  } catch (err) {
+    toast('Could not update profile: ' + (err.message || 'Server error'), 'error');
+  }
+};
+
+async function syncDoubtSolverSubjects() {
+  const sel = $('doubtSubject');
+  if (!sel) return;
+  try {
+    const data = await api('/academics/subjects');
+    if (data.subjects && data.subjects.length) {
+      sel.innerHTML = data.subjects.map(s => `<option value="${esc(s.name)}">${esc(s.name)} (${esc(s.code)})</option>`).join('') + '<option value="General">General Doubt</option>';
+    }
+  } catch (_) {}
+}
+window.syncDoubtSolverSubjects = syncDoubtSolverSubjects;

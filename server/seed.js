@@ -82,17 +82,27 @@ function seed() {
     extra.bio ?? ''
   ).lastInsertRowid);
 
-  // 1. Seed 10 CSE Students
+  // 1. Seed 10 CSE Students (Year 2, Sem 4 default)
   const cseUserIds = CSE_STUDENTS.map(([roll, name, email, xp, pct, phone, bio]) => ({
     id: mkUser(roll, name, email, { xp, dept: 'Computer Science & Engineering', year: 2, semester: 4, phone, bio }),
     roll, name, email
   }));
 
-  // 2. Seed 10 IT Students
+  // 2. Seed 10 IT Students (Year 2, Sem 4 default)
   const itUserIds = IT_STUDENTS.map(([roll, name, email, xp]) => ({
     id: mkUser(roll, name, email, { xp, dept: 'Information Technology', year: 2, semester: 4 }),
     roll, name, email
   }));
+
+  // Dedicated 1st-Year / 1st-Sem Demo Student: Aarav Sharma (Freshman Cohort)
+  const freshmanId = mkUser('2026CS0001', 'Aarav Sharma', 'aarav.1st@smartcampus.edu', {
+    xp: 950,
+    dept: 'Computer Science & Engineering',
+    year: 1,
+    semester: 1,
+    phone: '+91 98765 11001',
+    bio: '1st Year B.Tech CSE student exploring mathematical foundations and C programming.'
+  });
 
   // Primary user for student portal demo is Gaurav (first CSE student)
   const me = cseUserIds[0].id;
@@ -129,29 +139,29 @@ function seed() {
     });
   }
 
-  // 6. Seed Attendance and Marks for all students (focused on Semester 4 subjects)
-  const sem4Subjects = db.prepare('SELECT * FROM subjects WHERE sem=4').all();
-  const allStudents = [...cseUserIds, ...itUserIds];
+  // 6. Seed Attendance and Marks across both Sem 1 (1st Year) and Sem 4 (2nd Year)
+  const cohortSubjects = db.prepare('SELECT * FROM subjects WHERE sem IN (1, 4)').all();
+  const allStudents = [...cseUserIds, ...itUserIds, { id: freshmanId, roll: '2026CS0001' }];
 
   allStudents.forEach((student, sIdx) => {
     const isDeficit = (student.roll === '2024CS0068' || student.roll === '2024CS0098' || student.roll === '2024IT0005' || student.roll === '2024IT0009');
-    const baseRate = isDeficit ? 0.65 : (student.roll === '2024CS0042' ? 0.82 : (0.78 + (sIdx % 10) * 0.015));
+    const baseRate = isDeficit ? 0.65 : (student.roll === '2024CS0042' ? 0.82 : (student.roll === '2026CS0001' ? 0.85 : (0.78 + (sIdx % 10) * 0.015)));
 
-    sem4Subjects.forEach((sub, subIdx) => {
+    cohortSubjects.forEach((sub, subIdx) => {
       const total = 40 + (subIdx * 2);
       const attended = Math.round(total * (baseRate + (subIdx % 3 === 0 ? 0.03 : -0.02)));
       db.prepare('INSERT INTO attendance(user_id, subject_id, attended, total) VALUES(?, ?, ?, ?)')
         .run(student.id, sub.id, attended, total);
 
       // Marks
-      const internal = 22 + (sIdx % 6) + (subIdx % 3);
-      const endsem = 52 + (sIdx % 15) + (subIdx % 5);
+      const internal = 21 + (sIdx % 4) + (subIdx % 3);
+      const endsem = 55 + (sIdx % 12) + (subIdx % 6);
       db.prepare('INSERT INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, ?, ?, ?)')
         .run(student.id, sub.id, internal, endsem, 4, 5);
     });
   });
 
-  // 7. Seed Daily Attendance Log across Current and Previous Month for Demo Student Gaurav
+  // 7. Seed Daily Attendance Log across Current and Previous Month for Gaurav and Aarav
   const now = new Date();
   for (let i = -45; i <= 0; i++) {
     const dt = new Date(now);
@@ -159,20 +169,26 @@ function seed() {
     const dayOfWeek = dt.getDay();
     if (dayOfWeek === 0) continue; // Sunday no regular class
     const dateStr = dt.toISOString().slice(0, 10);
-    // 82% present rate
     const isPresent = (Math.abs(i) % 5 !== 0);
     const status = isPresent ? 'present' : 'absent';
     const method = isPresent ? (dayOfWeek === 1 || dayOfWeek === 3 ? 'Biometric Face Recognition' : (dayOfWeek === 2 || dayOfWeek === 4 ? 'Rolling Dynamic QR' : 'RFID Smart Card')) : 'None';
     try {
       db.prepare('INSERT INTO attendance_log(user_id, date, status, method) VALUES(?, ?, ?, ?)').run(me, dateStr, status, method);
+      db.prepare('INSERT INTO attendance_log(user_id, date, status, method) VALUES(?, ?, ?, ?)').run(freshmanId, dateStr, status, method);
     } catch {}
   }
 
   // 8. Seed Study Materials across all 4 Academic Years (1-4)
   const sampleMaterials = [
-    // Year 1 (Sem 1 & 2)
-    { title: 'Engineering Mathematics I - Calculus Lecture Notes', description: 'Comprehensive handwritten lecture notes on eigenvalues and multivariable calculus.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'MA101', type: 'Lecture Notes', file_name: 'MA101_Calculus_Notes.pdf' },
-    { title: 'Programming in C - Pointers & File I/O Handbook', description: 'Module-by-module reference guide with code snippets for memory pointers and struct files.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'CS101', type: 'Study Guide', file_name: 'CS101_C_Programming_Guide.pdf' },
+    // Year 1 (Sem 1) - Complete curriculum materials for all 5 subjects
+    { title: 'Engineering Mathematics I - Calculus & Matrices Lecture Notes', description: 'Comprehensive handwritten lecture notes on eigenvalues, multivariable calculus and infinite series.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'MA101', type: 'Lecture Notes', file_name: 'MA101_Calculus_Notes.pdf' },
+    { title: 'Programming in C - Pointers, Recursion & File I/O Handbook', description: 'Module-by-module reference guide with code snippets for memory pointers, structs and file streams.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'CS101', type: 'Study Guide', file_name: 'CS101_C_Programming_Guide.pdf' },
+    { title: 'Engineering Physics - Quantum Mechanics & Laser Optics Manual', description: 'Wave packet derivation, Schrödinger equation basics, semiconductor band gaps and laser physics.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'PH101', type: 'Formula Sheet', file_name: 'PH101_Physics_Formula_Sheet.pdf' },
+    { title: 'Basic Electrical Engineering - AC Circuits & Network Theorems Guide', description: 'Solved numericals on Thévenin theorem, Norton theorem, maximum power transfer and 3-phase circuits.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'EE101', type: 'Lab Manual', file_name: 'EE101_Electrical_Lab_Manual.pdf' },
+    { title: 'Communication Skills - Professional Writing & Presentation Framework', description: 'Technical documentation guidelines, executive summary structuring, and oral presentation tips.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'HS101', type: 'Reference Book', file_name: 'HS101_Technical_Writing.pdf' },
+    { title: 'Engineering Mathematics I - Solved Past Examination Papers', description: 'Step-by-step solutions for university end-semester questions across differential equations and matrices.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'MA101', type: 'Past Paper Solutions', file_name: 'MA101_Past_Papers.pdf' },
+
+    // Year 1 (Sem 2)
     { title: 'Data Structures - Balanced Trees & Graph Algorithms', description: 'Detailed visual explanations of AVL trees, Dijkstra algorithm and BFS/DFS.', dept: 'Computer Science & Engineering', year: 1, semester: 2, subject: 'CS102', type: 'Ebook', file_name: 'CS102_Data_Structures.pdf' },
 
     // Year 2 (Sem 3 & 4) - Gaurav is in Sem 4!
@@ -199,62 +215,77 @@ function seed() {
     `).run(m.title, m.description, m.dept, m.year, m.semester, sId, m.type, m.file_name, admin, 'Published');
   });
 
-  // 9. Seed Planner Tasks for Gaurav
-  const sampleTasks = [
+  // 9. Seed Planner Tasks for Gaurav (Year 2) and Aarav (Year 1)
+  const gauravTasks = [
     { title: 'Review CPU Scheduling Algorithms (Round Robin & Priority)', subject: 'Operating Systems', date: d(0), time: '17:30', priority: 'High', completed: 0 },
     { title: 'Implement Bellman-Ford shortest path algorithm in C++', subject: 'Algorithms', date: d(1), time: '18:00', priority: 'Medium', completed: 0 },
     { title: 'Analyze Wireshark three-way handshake PCAP file', subject: 'Computer Networks', date: d(2), time: '16:00', priority: 'Low', completed: 0 },
     { title: 'Draft UML Class Diagram for Library Management', subject: 'Software Engineering', date: d(3), time: '19:00', priority: 'Medium', completed: 0 },
     { title: 'Solve TOC problem set 4 (Pumping Lemma on CFLs)', subject: 'Theory of Computation', date: d(-1), time: '20:00', priority: 'High', completed: 1 }
   ];
-  sampleTasks.forEach(t => {
+  gauravTasks.forEach(t => {
     db.prepare(`INSERT INTO planner_tasks(user_id, title, subject, date, time, priority, completed) VALUES(?, ?, ?, ?, ?, ?, ?)`)
       .run(me, t.title, t.subject, t.date, t.time, t.priority, t.completed);
   });
 
-  // 10. Seed Student Vehicle for Gaurav
+  const freshmanTasks = [
+    { title: 'Solve Calculus Assignment 3 on Eigenvalues & Cayley-Hamilton', subject: 'Engineering Mathematics I', date: d(0), time: '16:30', priority: 'High', completed: 0 },
+    { title: 'Implement pointer-based string manipulation functions in C', subject: 'Programming in C', date: d(1), time: '17:30', priority: 'Medium', completed: 0 },
+    { title: 'Write experiment report on He-Ne Laser wavelength measurement', subject: 'Engineering Physics', date: d(2), time: '18:00', priority: 'Low', completed: 0 },
+    { title: 'Solve Mesh & Nodal analysis numericals for DC bridge circuit', subject: 'Basic Electrical Engineering', date: d(3), time: '19:30', priority: 'Medium', completed: 0 },
+    { title: 'Prepare 5-minute technical presentation slides on Linux OS', subject: 'Communication Skills', date: d(-1), time: '15:00', priority: 'High', completed: 1 }
+  ];
+  freshmanTasks.forEach(t => {
+    db.prepare(`INSERT INTO planner_tasks(user_id, title, subject, date, time, priority, completed) VALUES(?, ?, ?, ?, ?, ?, ?)`)
+      .run(freshmanId, t.title, t.subject, t.date, t.time, t.priority, t.completed);
+  });
+
+  // 10. Seed Student Vehicles
   db.prepare(`INSERT INTO vehicles(user_id, vehicle_type, reg_number, model, slot_assigned) VALUES(?, ?, ?, ?, ?)`)
     .run(me, 'Two-Wheeler', 'MH-12-AB-4042', 'Yamaha FZ v3 (Matte Black)', 'P-04');
+  db.prepare(`INSERT INTO vehicles(user_id, vehicle_type, reg_number, model, slot_assigned) VALUES(?, ?, ?, ?, ?)`)
+    .run(freshmanId, 'Two-Wheeler', 'MH-12-CD-2026', 'Honda Activa 6G (Pearl White)', 'P-07');
 
-  // 11. Seed Career Placement Openings with Honest Demo Label
+  // 11. Seed Career Placement Openings with Honest Demo Label (Year 1 vs Upper Years)
   const sampleJobs = [
+    // Year 1 Openings
+    { title: 'Freshman Summer Coding Fellowship (1st Year Open)', company: 'Google DSC / Campus Innovation Labs', location: 'Campus / Remote', ctc: '20,000 / month', deadline: d(25), eligibleSem: 1, eligibleDept: 'Computer Science & Engineering', skills: 'C, Data Structures Basics, Problem Solving, Git', type: 'Internship', status: 'Active (Demo)' },
+    { title: 'Junior Open-Source Contributor Sprint', company: 'Linux Foundation Campus Chapter', location: 'Remote', ctc: '15,000 Grant', deadline: d(30), eligibleSem: 1, eligibleDept: 'Computer Science & Engineering', skills: 'C, Linux, Markdown, Git', type: 'Internship', status: 'Active (Demo)' },
+
+    // Year 2 / Sem 4 Openings
     { title: 'Software Engineer - Distributed Systems', company: 'Nexus Technologies', location: 'Pune / Hybrid', ctc: '14.5 LPA', deadline: d(15), eligibleSem: 4, eligibleDept: 'Computer Science & Engineering', skills: 'Go, Docker, Distributed Systems, Linux', type: 'Full Time', status: 'Active (Demo)' },
     { title: 'Cloud Platform Intern', company: 'Apex Cloud Solutions', location: 'Bengaluru / Remote', ctc: '45,000 / month', deadline: d(20), eligibleSem: 4, eligibleDept: 'Computer Science & Engineering', skills: 'Python, AWS, Terraform, CI/CD', type: 'Internship', status: 'Active (Demo)' },
     { title: 'Full-Stack Developer Trainee', company: 'InnoTech Labs', location: 'Hyderabad / On-site', ctc: '10.2 LPA', deadline: d(30), eligibleSem: 4, eligibleDept: 'Information Technology', skills: 'TypeScript, React, Node.js, PostgreSQL', type: 'Full Time', status: 'Active (Demo)' }
   ];
   sampleJobs.forEach(j => rec.add('job', null, j));
 
-  // 12. Seed Institutional Notices
+  // 12. Seed Institutional Notices with Cohort Isolation
   const sampleNotices = [
-    { title: 'Mid-Semester Examinations Commencement Schedule', body: 'The university examination cell has released the academic calendar and mid-term schedule for B.Tech Semester 4. Hall tickets will be verified online.', summary: 'Mid-term exams commence from November 20. Check syllabus roadmap for unit distributions.', category: 'Academic', priority: 'High', target_year: 2, target_dept: 'Computer Science & Engineering' },
-    { title: 'Annual Inter-College Hackathon 2026 Registration Open', body: 'Teams of 3-4 students from CSE and IT are invited to submit project proposals for the Smart City Innovation Sprint.', summary: 'Cash prizes of INR 2,00,000 for top 3 teams. Registration closes on November 15.', category: 'Events', priority: 'Medium', target_year: 2, target_dept: 'Computer Science & Engineering' },
-    { title: 'Campus Wi-Fi Maintenance Window Notice', body: 'Central IT infrastructure team will be upgrading access point controllers across Hostel Blocks and Academic Complexes this Sunday from 02:00 AM to 06:00 AM.', summary: 'Brief network disruptions expected on Sunday morning.', category: 'Maintenance', priority: 'Low', target_year: null, target_dept: null }
+    // Year 1 Notices
+    { title: 'First-Year Induction & Freshmen Orientation 2026', body: 'Welcome to Smart Campus. The mandatory induction program for all 1st Year B.Tech students will be held in the University Auditorium from 10:00 AM.', summary: 'Mandatory induction for 1st Year B.Tech students in University Auditorium.', category: 'Academic', priority: 'High', target_year: 1, target_dept: 'Computer Science & Engineering' },
+    { title: 'Semester 1 Foundation Mathematics & C Programming Doubt Clinics', body: 'Department of CSE has arranged special evening tutorial sessions for 1st Year students in Computer Lab 1 every Tuesday and Thursday.', summary: 'Evening tutorial clinics in Computer Lab 1 for 1st Year CSE students.', category: 'Academic', priority: 'Medium', target_year: 1, target_dept: 'Computer Science & Engineering' },
+    { title: 'Freshman Library Card & Digital Portal Activation Notice', body: 'All newly admitted 1st year students are requested to collect their physical smart ID cards and verify their digital library credentials at the central circulation desk.', summary: 'Smart ID and Digital Library credential verification for 1st Year cohort.', category: 'Services', priority: 'Low', target_year: 1, target_dept: null },
+
+    // Year 2 Notices
+    { title: 'Mid-Semester Examinations Commencement Schedule for Semester 4', body: 'The university examination cell has released the academic calendar and mid-term schedule for B.Tech Semester 4. Hall tickets will be verified online.', summary: 'Mid-term exams commence from November 20. Check syllabus roadmap for unit distributions.', category: 'Academic', priority: 'High', target_year: 2, target_dept: 'Computer Science & Engineering' },
+    { title: 'Annual Inter-College Hackathon 2026 for Year 2 CSE/IT', body: 'Teams of 3-4 students from CSE and IT are invited to submit project proposals for the Smart City Innovation Sprint.', summary: 'Cash prizes of INR 2,00,000 for top 3 teams. Registration closes on November 15.', category: 'Events', priority: 'Medium', target_year: 2, target_dept: 'Computer Science & Engineering' },
+
+    // General Notices (All students)
+    { title: 'Campus Wi-Fi Maintenance Window Notice', body: 'Central IT infrastructure team will be upgrading access point controllers across Hostel Blocks and Academic Complexes this Sunday from 02:00 AM to 06:00 AM.', summary: 'Brief network disruptions expected on Sunday morning.', category: 'Maintenance', priority: 'Low', target_year: null, target_dept: null },
+    { title: 'Institutional Clean Energy & Smart Transit Initiative', body: 'Electric campus shuttles now operate every 15 minutes between the Main Gate, Academic Blocks and Hostel Complex.', summary: 'Free electric transit active across campus every 15 minutes.', category: 'Services', priority: 'Low', target_year: null, target_dept: null }
   ];
   sampleNotices.forEach(n => {
     db.prepare('INSERT INTO notices(title, body, summary, category, priority, target_year, target_dept) VALUES(?, ?, ?, ?, ?, ?, ?)')
       .run(n.title, n.body, n.summary, n.category, n.priority, n.target_year, n.target_dept);
   });
 
-  // 13. Seed Fee Structure for Gaurav
+  // 13. Seed Fee Structure
   rec.add('fee', me, { title: 'Tuition Fee - Year 2 (Sem 4)', assessed: 65000, paid: 65000, due: 0, status: 'Paid', receipt: 'REC-2026-0428' });
   rec.add('fee', me, { title: 'Laboratory & Examination Fee', assessed: 12000, paid: 12000, due: 0, status: 'Paid', receipt: 'REC-2026-0429' });
+  rec.add('fee', freshmanId, { title: 'Tuition Fee - Year 1 (Sem 1)', assessed: 60000, paid: 60000, due: 0, status: 'Paid', receipt: 'REC-2026-1001' });
+  rec.add('fee', freshmanId, { title: 'Freshman Induction & Library Deposit', assessed: 10000, paid: 10000, due: 0, status: 'Paid', receipt: 'REC-2026-1002' });
 
-  // 14. Seed Weekly Timetable for Semester 4 (Mon to Fri)
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-  weekdays.forEach(day => {
-    rec.add('timetable', null, {
-      day,
-      slots: [
-        { time: '09:00 - 10:00', subject: 'Operating Systems', faculty: 'Dr. Rajesh Sharma', room: 'Hall 101' },
-        { time: '10:00 - 11:00', subject: 'Design & Analysis of Algorithms', faculty: 'Prof. Ananya Iyer', room: 'Hall 102' },
-        { time: '11:15 - 12:15', subject: 'Computer Networks', faculty: 'Dr. Vikram Rao', room: 'Lab 3' },
-        { time: '13:00 - 14:00', subject: 'Software Engineering', faculty: 'Prof. Meera Nair', room: 'Hall 204' },
-        { time: '14:00 - 15:00', subject: 'Theory of Computation', faculty: 'Dr. Suresh Kulkarni', room: 'Hall 101' }
-      ]
-    });
-  });
-
-  // 15. Seed Parking Slots (12 slots)
+  // 14. Seed Parking Slots (12 slots)
   for (let i = 1; i <= 12; i++) {
     rec.add('parking_slot', null, {
       slot: `P-${String(i).padStart(2, '0')}`,
@@ -263,6 +294,24 @@ function seed() {
       reservedFor: i === 4 ? '2024CS0042' : null
     });
   }
+
+  // 15. Seed Digital Library Textbooks & Reference Ebooks (Cohort Isolated)
+  const sampleEbooks = [
+    // Year 1 / Sem 1
+    { title: 'Higher Engineering Mathematics - B.S. Grewal (10th Ed)', subject: 'Engineering Mathematics I', year: 1, sem: 1, description: 'Standard university textbook covering linear algebra, calculus, and vector spaces.', file_name: 'Grewal_Engineering_Math.pdf' },
+    { title: 'The C Programming Language (ANSI C) - Kernighan & Ritchie', subject: 'Programming in C', year: 1, sem: 1, description: 'The definitive classic reference for C programming, pointers, and standard I/O library.', file_name: 'K_and_R_C_Programming.pdf' },
+    { title: 'Concepts of Modern Physics - Arthur Beiser (6th Edition)', subject: 'Engineering Physics', year: 1, sem: 1, description: 'Core textbook for wave particle duality, quantum states, and solid state semiconductors.', file_name: 'Beiser_Modern_Physics.pdf' },
+    { title: 'Basic Electrical Engineering - D.C. Kulshreshtha', subject: 'Basic Electrical Engineering', year: 1, sem: 1, description: 'Comprehensive analysis of AC circuits, transformer operations, and electric machines.', file_name: 'Kulshreshtha_Basic_EE.pdf' },
+    { title: 'Technical Communication: Principles and Practice - Meenakshi Raman', subject: 'Communication Skills', year: 1, sem: 1, description: 'Practical guide for technical reports, professional correspondence, and group discussions.', file_name: 'Raman_Communication_Skills.pdf' },
+
+    // Year 2 / Sem 4
+    { title: 'Operating System Concepts - Silberschatz, Galvin & Gagne', subject: 'Operating Systems', year: 2, sem: 4, description: 'Standard dinosaur book on processes, memory virtualization, storage and deadlocks.', file_name: 'Silberschatz_Operating_Systems.pdf' },
+    { title: 'Introduction to Algorithms - Cormen, Leiserson, Rivest & Stein (CLRS)', subject: 'Design & Analysis of Algorithms', year: 2, sem: 4, description: 'Authoritative algorithms manual covering greedy algorithms, dynamic programming, and graphs.', file_name: 'CLRS_Algorithms.pdf' },
+    { title: 'Computer Networking: A Top-Down Approach - Kurose & Ross', subject: 'Computer Networks', year: 2, sem: 4, description: 'Layer-by-layer reference covering TCP/IP, routing algorithms, socket coding and security.', file_name: 'Kurose_Computer_Networking.pdf' },
+    { title: 'Software Engineering: A Practitioner’s Approach - Roger Pressman', subject: 'Software Engineering', year: 2, sem: 4, description: 'Comprehensive guide to software architecture, UML modeling, agile sprints and CI/CD.', file_name: 'Pressman_Software_Engineering.pdf' },
+    { title: 'Introduction to the Theory of Computation - Michael Sipser', subject: 'Theory of Computation', year: 2, sem: 4, description: 'Standard reference on regular languages, context-free grammars, Turing machines, and NP-completeness.', file_name: 'Sipser_Theory_Of_Computation.pdf' }
+  ];
+  sampleEbooks.forEach(b => rec.add('library_file', null, b));
 
   // 16. Seed Student Projects
   const pj = rec.add('project', me, { title: 'AI Smart Campus System', desc: 'Unified student services, attendance tracking and academic intelligence platform.', guide: 'Dr. Vikram Rao', status: 'Active', progress: 80 });
@@ -275,8 +324,9 @@ function seed() {
 
   // 18. Initial Notification
   notify(me, 'Welcome to Smart Campus. Your semester 4 academic dashboard is ready.', 'info', 'welcome');
+  notify(freshmanId, 'Welcome to Smart Campus! Your 1st-Year induction, schedule and foundation materials are ready.', 'info', 'welcome_1st');
 
-  return { me, admin };
+  return { me, freshmanId, admin };
 }
 
 function ensureSeeded() {
@@ -286,10 +336,11 @@ function ensureSeeded() {
 }
 
 if (require.main === module) {
-  if (process.argv.includes('--reset')) reset();
+  reset();
   seed();
-  console.log('Seeded successfully with 10 CSE Students, 10 IT Students, and 5 Faculty.');
-  console.log('Demo student login: 2024CS0042 / student123 (or 2024IT0001 / student123)');
-  console.log('Demo admin login:   ADMIN001 / student123');
+  console.log('Seeded successfully with 10 CSE Students, 10 IT Students, 1st-Year Freshman, and 5 Faculty.');
+  console.log('Demo student (Year 2): 2024CS0042 / student123');
+  console.log('Demo student (Year 1): 2026CS0001 / student123');
+  console.log('Demo admin login:      ADMIN001 / student123');
 }
 module.exports = { ensureSeeded, reset, seed };

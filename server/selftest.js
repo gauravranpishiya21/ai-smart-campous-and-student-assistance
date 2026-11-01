@@ -627,6 +627,67 @@ const t = async (name, fn) => {
     assert.ok(typeof dlRes.body === 'string' && dlRes.body.includes('PDF'));
   });
 
+  await t('first-year student (2026CS0001) strict cohort isolation & dynamic switching', async () => {
+    // 1. Log in as dedicated 1st-Year freshman Aarav Sharma
+    const freshmanLogin = await call('POST', '/auth/login', { id: '2026CS0001', password: 'student123' });
+    assert.strictEqual(freshmanLogin.status, 200, 'Freshman student login must succeed');
+    const fToken = freshmanLogin.body.token;
+    assert.strictEqual(freshmanLogin.body.user.year, 1);
+    assert.strictEqual(freshmanLogin.body.user.semester, 1);
+
+    // 2. Study materials must be strictly Year 1 Sem 1
+    const matRes = await call('GET', '/materials', null, fToken);
+    assert.strictEqual(matRes.status, 200);
+    assert.strictEqual(matRes.body.studentYear, 1);
+    assert.strictEqual(matRes.body.studentSem, 1);
+    assert.ok(matRes.body.materials.length >= 4, 'Must return seeded 1st-year materials');
+    matRes.body.materials.forEach(m => {
+      assert.strictEqual(m.year, 1, '1st-year student must receive ONLY Year 1 materials');
+      assert.strictEqual(m.semester, 1, '1st-year student must receive ONLY Semester 1 materials');
+    });
+
+    // 3. Timetable must return Year 1 subjects
+    const ttRes = await call('GET', '/timetable', null, fToken);
+    assert.strictEqual(ttRes.status, 200);
+    assert.ok(Array.isArray(ttRes.body));
+    const allSubjects = ttRes.body.flatMap(d => (d.slots || []).map(s => s.subject));
+    assert.ok(allSubjects.includes('Engineering Mathematics I') || allSubjects.includes('Programming in C'), 'Timetable must contain 1st-year subjects');
+    assert.ok(!allSubjects.includes('Operating Systems'), 'Timetable must NOT contain 2nd-year subjects like OS');
+
+    // 4. Digital library must return Year 1 textbooks
+    const libRes = await call('GET', '/digital-library/files', null, fToken);
+    assert.strictEqual(libRes.status, 200);
+    assert.ok(libRes.body.items.length >= 5);
+    libRes.body.items.forEach(f => {
+      if (f.year) assert.strictEqual(f.year, 1, 'Ebooks must be Year 1 or general');
+    });
+
+    // 5. Notices must return Year 1 and general notices, excluding Year 2
+    const noticeRes = await call('GET', '/notices', null, fToken);
+    assert.strictEqual(noticeRes.status, 200);
+    noticeRes.body.forEach(n => {
+      if (n.target_year) assert.strictEqual(n.target_year, 1, 'Notices must not leak other years');
+    });
+
+    // 6. Access control: 1st-year student downloading Year 2 material must be blocked (HTTP 403)
+    // Find a Year 2 material ID
+    const y2Mat = await call('GET', '/materials', null, token); // token belongs to Year 2 student
+    if (y2Mat.body.materials && y2Mat.body.materials[0]) {
+      const forbiddenDl = await call('GET', `/materials/${y2Mat.body.materials[0].id}/download`, null, fToken);
+      assert.strictEqual(forbiddenDl.status, 403, 'Cross-cohort download must be forbidden');
+    }
+
+    // 7. Dynamic Cohort Switcher test: Switch Aarav to Sem 2, verify, then switch back to Sem 1
+    const switchRes = await call('PUT', '/profile', { semester: 2 }, fToken);
+    assert.strictEqual(switchRes.status, 200);
+    assert.strictEqual(switchRes.body.user.semester, 2);
+    assert.strictEqual(switchRes.body.user.year, 1);
+
+    const switchBack = await call('PUT', '/profile', { semester: 1 }, fToken);
+    assert.strictEqual(switchBack.status, 200);
+    assert.strictEqual(switchBack.body.user.semester, 1);
+  });
+
   await t('student profile reading and personal contact update', async () => {
     const profRes = await call('GET', '/profile', null, token);
     assert.strictEqual(profRes.status, 200);

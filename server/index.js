@@ -170,7 +170,24 @@ api.get('/dashboard', h((req, res) => {
   const labels = keys.map((k) => (k === 0 ? 'This wk' : `${k}w ago`)), data = keys.map((k) => Math.round(weeks[k].filter(Boolean).length / weeks[k].length * 100));
   const fc = [f.projected, Math.min(100, f.projected + 1)].map((x) => Math.round(x));
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const tt = rec.list('timetable', null, { order: 'ASC' });
+  const sem = u.semester || 1;
+  const semSubjects = db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY id').all(sem);
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const rooms = sem <= 2
+    ? ['Hall 101', 'Hall 102', 'Physics Lab', 'Computing Lab 1', 'Language Lab']
+    : ['Hall 201', 'Hall 202', 'Networks Lab', 'Systems Lab', 'Hall 304'];
+
+  const tt = weekdays.map((day, dIdx) => ({
+    day,
+    semester: sem,
+    slots: [
+      { time: '09:00 - 10:00', subject: semSubjects[(dIdx) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx) % semSubjects.length]?.faculty || 'Faculty', room: rooms[0] },
+      { time: '10:00 - 11:00', subject: semSubjects[(dIdx + 1) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 1) % semSubjects.length]?.faculty || 'Faculty', room: rooms[1] },
+      { time: '11:15 - 12:15', subject: semSubjects[(dIdx + 2) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 2) % semSubjects.length]?.faculty || 'Faculty', room: rooms[2] },
+      { time: '13:00 - 14:00', subject: semSubjects[(dIdx + 3) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 3) % semSubjects.length]?.faculty || 'Faculty', room: rooms[3] },
+      { time: '14:00 - 15:00', subject: semSubjects[(dIdx + 4) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 4) % semSubjects.length]?.faculty || 'Faculty', room: rooms[4] }
+    ]
+  }));
   const routineToday = (tt.find((x) => x.day === days[new Date().getDay()])?.slots || []);
   const rule = snap.subjects.map((s) => ({ code: s.code, name: s.name, pct: ai.r1(s.pct), ok: s.pct >= 75, mustAttend: ai.bunkPlan(s.attended, s.classes).mustAttend }));
   res.json({
@@ -331,7 +348,7 @@ api.get('/syllabus', (req, res) => {
   res.json({ enrolledYear: req.user.year, dept: req.user.dept, semesters: Object.entries(sems).map(([sem, subjects]) => ({ sem: Number(sem), subjects })) });
 });
 api.get('/curriculum', (req, res) => {
-  const sem = Number(req.query.sem) || req.user.semester;
+  const sem = Number(req.query.sem) || req.user.semester || 1;
   const rc = ai.recordedCgpa(req.user.id);
   const subjects = db.prepare('SELECT * FROM subjects WHERE sem=?').all(sem).map((s) => {
     const m = db.prepare('SELECT * FROM marks WHERE user_id=? AND subject_id=?').get(req.user.id, s.id) || {};
@@ -341,8 +358,8 @@ api.get('/curriculum', (req, res) => {
   res.json({ cgpa: rc.cgpa, credits: rc.credits, backlogs: rc.backlogs, subjects });
 });
 api.get('/calendar', (req, res) => {
-  const y = Number(req.query.year) || req.user?.year || 2;
-  const s = Number(req.query.sem) || req.user?.semester || (y * 2);
+  const y = Number(req.query.year) || req.user?.year || (req.user?.semester ? Math.ceil(req.user.semester / 2) : 1);
+  const s = Number(req.query.sem) || req.user?.semester || (y * 2 - 1);
 
   // If annual/mechanism mode is explicitly requested
   if (req.query.mode === 'annual' || req.query.annual === 'true' || req.query.view === 'annual') {
@@ -406,7 +423,31 @@ api.get('/calendar/ics', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="smart-campus-academic-calendar-y${y}.ics"`);
   res.send(icsData);
 });
-api.get('/timetable', (req, res) => res.json(rec.list('timetable', null, { order: 'ASC' })));
+api.get('/timetable', (req, res) => {
+  const sem = req.user.semester || 1;
+  const semSubjects = db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY id').all(sem);
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const rooms = sem <= 2
+    ? ['Hall 101', 'Hall 102', 'Physics Lab', 'Computing Lab 1', 'Language Lab']
+    : ['Hall 201', 'Hall 202', 'Networks Lab', 'Systems Lab', 'Hall 304'];
+
+  if (!semSubjects.length) {
+    return res.json(rec.list('timetable', null, { order: 'ASC' }));
+  }
+
+  const tt = weekdays.map((day, dIdx) => ({
+    day,
+    semester: sem,
+    slots: [
+      { time: '09:00 - 10:00', subject: semSubjects[(dIdx) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx) % semSubjects.length]?.faculty || 'Faculty', room: rooms[0] },
+      { time: '10:00 - 11:00', subject: semSubjects[(dIdx + 1) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 1) % semSubjects.length]?.faculty || 'Faculty', room: rooms[1] },
+      { time: '11:15 - 12:15', subject: semSubjects[(dIdx + 2) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 2) % semSubjects.length]?.faculty || 'Faculty', room: rooms[2] },
+      { time: '13:00 - 14:00', subject: semSubjects[(dIdx + 3) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 3) % semSubjects.length]?.faculty || 'Faculty', room: rooms[3] },
+      { time: '14:00 - 15:00', subject: semSubjects[(dIdx + 4) % semSubjects.length]?.name || 'Lecture', faculty: semSubjects[(dIdx + 4) % semSubjects.length]?.faculty || 'Faculty', room: rooms[4] }
+    ]
+  }));
+  res.json(tt);
+});
 api.get('/exam-schedule', (req, res) => {
   const ex = rec.list('exam', null, { order: 'ASC' }).sort((a, b) => a.date.localeCompare(b.date));
   const next = ex.find((e) => new Date(e.date) >= new Date(today()));
@@ -415,7 +456,20 @@ api.get('/exam-schedule', (req, res) => {
 });
 api.get('/leaderboard', (req, res) => res.json(db.prepare("SELECT id,name,xp FROM users WHERE role='student' ORDER BY xp DESC LIMIT 20").all().map((u, i) => ({ rank: i + 1, name: u.name, xp: u.xp, level: level(u.xp).level, me: u.id === req.user.id }))));
 api.get('/faculty', (req, res) => res.json(rec.list('faculty', null, { order: 'ASC' })));
-api.get('/notices', (req, res) => res.json(db.prepare('SELECT * FROM notices ORDER BY id DESC').all()));
+api.get('/notices', (req, res) => {
+  const userYear = req.user.year || (req.user.semester ? Math.ceil(req.user.semester / 2) : 1);
+  const userDept = req.user.dept;
+  if (req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'faculty') {
+    return res.json(db.prepare('SELECT * FROM notices ORDER BY id DESC').all());
+  }
+  const notices = db.prepare(`
+    SELECT * FROM notices
+    WHERE (target_year IS NULL OR target_year = ?)
+      AND (target_dept IS NULL OR target_dept = '' OR target_dept = ?)
+    ORDER BY id DESC
+  `).all(userYear, userDept);
+  res.json(notices);
+});
 
 // ---------- library ----------
 function makePdf(title, lines) {
@@ -430,7 +484,16 @@ function makePdf(title, lines) {
   const x = out.length; out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + off.map((o) => String(o).padStart(10, '0') + ' 00000 n \n').join('');
   return Buffer.from(out + `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${x}\n%%EOF`, 'latin1');
 }
-api.get('/digital-library/files', (req, res) => res.json({ items: rec.list('library_file', null, { order: 'ASC' }) }));
+api.get('/digital-library/files', (req, res) => {
+  const userYear = req.user.year || (req.user.semester ? Math.ceil(req.user.semester / 2) : 1);
+  const userSem = req.user.semester || 1;
+  const allFiles = rec.list('library_file', null, { order: 'ASC' });
+  if (req.user.role === 'student') {
+    const scoped = allFiles.filter(f => !f.year || f.year === userYear || f.sem === userSem);
+    return res.json({ items: scoped });
+  }
+  res.json({ items: allFiles });
+});
 api.get('/digital-library/files/:id/:action', (req, res) => {
   const f = rec.get(Number(req.params.id)); if (!f) return bad(res, 'File not found.', 404);
   const s = ai.snapshot(req.user.id);
@@ -450,9 +513,17 @@ api.post('/library/return/:id', h((req, res) => {
 api.get('/placement', (req, res) => {
   const apps = rec.list('application', req.user.id), certs = rec.list('placement_cert', req.user.id);
   const resume = rec.getDoc('resume', req.user.id);
-  res.json({ jobs: rec.list('job', null, { order: 'ASC' }).map((j) => ({ ...j, applied: apps.some((a) => a.job_id === j.id), match: matchScore(resume.summary, j.skills) })),
+  const allJobs = rec.list('job', null, { order: 'ASC' });
+  const sem = req.user.semester || 1;
+  const visibleJobs = req.user.role === 'student'
+    ? allJobs.filter((j) => !j.eligibleSem || j.eligibleSem <= sem)
+    : allJobs;
+
+  res.json({
+    jobs: visibleJobs.map((j) => ({ ...j, applied: apps.some((a) => a.job_id === j.id), match: matchScore(resume.summary, j.skills) })),
     applications: apps, interviews: rec.list('interview', req.user.id), certificates: certs,
-    summary: { applied: apps.length, interviews: rec.list('interview', req.user.id).length, certificates: certs.length, resumeScore: ai.atsAnalyze(resume).score } });
+    summary: { applied: apps.length, interviews: rec.list('interview', req.user.id).length, certificates: certs.length, resumeScore: ai.atsAnalyze(resume).score }
+  });
 });
 function matchScore(text = '', skills = '') {
   const need = skills.split(',').map((s) => s.trim().toLowerCase()), t = text.toLowerCase();
@@ -990,26 +1061,39 @@ api.get('/profile', h((req, res) => {
 }));
 
 api.put('/profile', h((req, res) => {
-  const { phone, bio } = req.body || {};
+  const { phone, bio, year, semester } = req.body || {};
   const cleanPhone = String(phone || '').trim().slice(0, 20);
   const cleanBio = String(bio || '').trim().slice(0, 200);
 
-  db.prepare('UPDATE users SET phone = ?, bio = ? WHERE id = ?').run(cleanPhone, cleanBio, req.user.id);
+  let newSem = req.user.semester || 1;
+  let newYear = req.user.year || 1;
+  if (semester) {
+    newSem = Math.max(1, Math.min(8, parseInt(semester, 10)));
+    newYear = Math.ceil(newSem / 2);
+  } else if (year) {
+    newYear = Math.max(1, Math.min(4, parseInt(year, 10)));
+    newSem = (newYear * 2) - 1;
+  }
+
+  db.prepare('UPDATE users SET phone = ?, bio = ?, year = ?, semester = ? WHERE id = ?')
+    .run(cleanPhone, cleanBio, newYear, newSem, req.user.id);
+
   const updatedUser = db.prepare('SELECT id, roll_no, name, email, dept, year, semester, xp, role, phone, bio FROM users WHERE id=?').get(req.user.id);
 
   res.json({
-    message: 'Profile contact details updated successfully.',
+    message: 'Profile details and academic cohort updated successfully.',
     user: updatedUser
   });
 }));
 
 // 3. Year-Based Curriculum Subjects
 api.get('/academics/subjects', h((req, res) => {
-  const semester = req.user.semester || 4;
+  const semester = req.user.semester || 1;
+  const year = req.user.year || Math.ceil(semester / 2);
   const subjects = db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY code ASC').all(semester);
   res.json({
     semester,
-    year: req.user.year || 2,
+    year,
     dept: req.user.dept || 'Computer Science & Engineering',
     subjects
   });
@@ -1017,8 +1101,8 @@ api.get('/academics/subjects', h((req, res) => {
 
 // 4. Year-Based Study Materials (Cohort Isolated)
 api.get('/materials', h((req, res) => {
-  const year = req.user.year || 2;
-  const sem = req.user.semester || 4;
+  const sem = req.user.semester || 1;
+  const year = req.user.year || Math.ceil(sem / 2);
   const dept = req.user.dept || 'Computer Science & Engineering';
 
   // Server-side strict isolation: ignore any client query params for year/sem
@@ -1045,7 +1129,9 @@ api.get('/materials/:id/download', h((req, res) => {
   const mat = db.prepare('SELECT sm.*, s.name as subject_name, s.code as subject_code FROM study_materials sm LEFT JOIN subjects s ON sm.subject_id = s.id WHERE sm.id = ?').get(matId);
   if (!mat) return bad(res, 'Study material not found.', 404);
 
-  if (req.user.role === 'student' && (mat.year !== req.user.year || mat.semester !== req.user.semester)) {
+  const userSem = req.user.semester || 1;
+  const userYear = req.user.year || Math.ceil(userSem / 2);
+  if (req.user.role === 'student' && (mat.year !== userYear || mat.semester !== userSem)) {
     return bad(res, 'Access denied: this material is restricted to another academic cohort.', 403);
   }
 

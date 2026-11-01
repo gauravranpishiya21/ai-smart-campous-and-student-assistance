@@ -1329,73 +1329,6 @@ tbody tr:hover {
     </div>
   </div>
 
-  <!-- Student Year & Semester Selector Tabs -->
-  <div class="mb-8 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-      <div>
-        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <i class="fas fa-sitemap text-indigo-600"></i> Select Student Year &amp; Working Mechanism Track
-        </h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400">
-          The working mechanism, assessment phases, and project milestones dynamically adjust to your year.
-        </p>
-      </div>
-      <!-- Semester Scope Tabs -->
-      <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold self-start lg:self-auto">
-        <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-all" onclick="window.switchCalendarTerm('all')">Full Year (2026–27)</button>
-        <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-odd" onclick="window.switchCalendarTerm('odd')">Odd Sem (Aug–Dec)</button>
-        <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-even" onclick="window.switchCalendarTerm('even')">Even Sem (Jan–May)</button>
-      </div>
-    </div>
-
-    <!-- 4 Year Action Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-      <!-- Year 1 -->
-      <div class="cal-year-card cursor-pointer p-4 rounded-xl border-2 transition-all relative overflow-hidden bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:shadow-md" id="calYearCard-1" onclick="window.switchCalendarYear(1)">
-        <div class="flex items-center justify-between mb-2">
-          <span class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 flex items-center justify-center text-xs font-black">Y1</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">Freshmen</span>
-        </div>
-        <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">1st Year Engineering</h4>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">AICTE Induction (SIP), Foundation Sciences, C Labs, Diagnostic Audits.</p>
-        <span class="cal-enrolled-pill text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mt-2 hidden" id="calEnrolledTag-1">Your Year</span>
-      </div>
-
-      <!-- Year 2 -->
-      <div class="cal-year-card cursor-pointer p-4 rounded-xl border-2 transition-all relative overflow-hidden bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:shadow-md" id="calYearCard-2" onclick="window.switchCalendarYear(2)">
-        <div class="flex items-center justify-between mb-2">
-          <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 flex items-center justify-center text-xs font-black">Y2</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">Sophomore</span>
-        </div>
-        <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">2nd Year Engineering</h4>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Core Tech, Mini-Project Reviews, Industrial Visits, Tech Hackathons.</p>
-        <span class="cal-enrolled-pill text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mt-2 hidden" id="calEnrolledTag-2">Your Year</span>
-      </div>
-
-      <!-- Year 3 -->
-      <div class="cal-year-card cursor-pointer p-4 rounded-xl border-2 transition-all relative overflow-hidden bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:shadow-md" id="calYearCard-3" onclick="window.switchCalendarYear(3)">
-        <div class="flex items-center justify-between mb-2">
-          <span class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 flex items-center justify-center text-xs font-black">Y3</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-300">Junior</span>
-        </div>
-        <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">3rd Year Engineering</h4>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Specializations, Pre-Placement Training (PPT), Summer Internships.</p>
-        <span class="cal-enrolled-pill text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mt-2 hidden" id="calEnrolledTag-3">Your Year</span>
-      </div>
-
-      <!-- Year 4 -->
-      <div class="cal-year-card cursor-pointer p-4 rounded-xl border-2 transition-all relative overflow-hidden bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:shadow-md" id="calYearCard-4" onclick="window.switchCalendarYear(4)">
-        <div class="flex items-center justify-between mb-2">
-          <span class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 flex items-center justify-center text-xs font-black">Y4</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300">Senior</span>
-        </div>
-        <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">4th Year Engineering</h4>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Tier-1 Placements, Capstone Thesis Defense, IEEE Paper, Convocation.</p>
-        <span class="cal-enrolled-pill text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mt-2 hidden" id="calEnrolledTag-4">Your Year</span>
-      </div>
-    </div>
-  </div>
-
   <!-- Operational KPI Metrics Bar -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="calKpiContainer">
     <!-- Prescribed Instructional Days -->
@@ -1490,16 +1423,24 @@ tbody tr:hover {
       <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
           <!-- View Modes -->
-          <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
-            <button class="cal-view-tab active px-3.5 py-2 rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition" id="tabView-month" onclick="window.switchCalendarView('month')">
-              <i class="fas fa-calendar-days mr-1.5"></i> Month Grid
-            </button>
-            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-year" onclick="window.switchCalendarView('year')">
-              <i class="fas fa-calendar mr-1.5"></i> 12-Month Matrix
-            </button>
-            <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-agenda" onclick="window.switchCalendarView('agenda')">
-              <i class="fas fa-list-ul mr-1.5"></i> Schedule Agenda
-            </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+              <button class="cal-view-tab active px-3.5 py-2 rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition" id="tabView-month" onclick="window.switchCalendarView('month')">
+                <i class="fas fa-calendar-days mr-1.5"></i> Month Grid
+              </button>
+              <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-year" onclick="window.switchCalendarView('year')">
+                <i class="fas fa-calendar mr-1.5"></i> 12-Month Matrix
+              </button>
+              <button class="cal-view-tab px-3.5 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" id="tabView-agenda" onclick="window.switchCalendarView('agenda')">
+                <i class="fas fa-list-ul mr-1.5"></i> Schedule Agenda
+              </button>
+            </div>
+            <!-- Semester Scope Tabs -->
+            <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+              <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-all" onclick="window.switchCalendarTerm('all')">Full Year</button>
+              <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-odd" onclick="window.switchCalendarTerm('odd')">Odd Term</button>
+              <button class="cal-scope-pill px-3 py-1.5 rounded-lg transition" id="calScope-even" onclick="window.switchCalendarTerm('even')">Even Term</button>
+            </div>
           </div>
 
           <!-- Month Navigation / Jump Controls -->

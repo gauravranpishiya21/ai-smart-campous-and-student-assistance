@@ -65,22 +65,26 @@ function reset() {
 function seed() {
   const hash = bcrypt.hashSync('student123', 8);
 
-  const mkUser = (roll, name, email, extra = {}) => Number(db.prepare(`
-    INSERT INTO users(roll_no, name, email, password_hash, xp, role, dept, year, semester, phone, bio)
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    roll,
-    name,
-    email,
-    hash,
-    extra.xp ?? 0,
-    extra.role ?? 'student',
-    extra.dept ?? 'Computer Science & Engineering',
-    extra.year ?? 2,
-    extra.semester ?? 4,
-    extra.phone ?? '',
-    extra.bio ?? ''
-  ).lastInsertRowid);
+  const mkUser = (roll, name, email, extra = {}) => {
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(roll_no) = LOWER(?) OR LOWER(email) = LOWER(?)').get(roll, email);
+    if (existing) return existing.id;
+    return Number(db.prepare(`
+      INSERT INTO users(roll_no, name, email, password_hash, xp, role, dept, year, semester, phone, bio)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      roll,
+      name,
+      email,
+      hash,
+      extra.xp ?? 0,
+      extra.role ?? 'student',
+      extra.dept ?? 'Computer Science & Engineering',
+      extra.year ?? 2,
+      extra.semester ?? 4,
+      extra.phone ?? '',
+      extra.bio ?? ''
+    ).lastInsertRowid);
+  };
 
   // 1. Seed 10 CSE Students (Year 2, Sem 4 default)
   const cseUserIds = CSE_STUDENTS.map(([roll, name, email, xp, pct, phone, bio]) => ({
@@ -127,16 +131,21 @@ function seed() {
 
   // 5. Seed Catalog of Subjects for Semesters 1 through 8
   const subjectMap = {};
-  for (const [sem, list] of Object.entries(CATALOG)) {
-    const sInt = Number(sem);
-    list.forEach((entry, idx) => {
-      const [code, name, credits, category, modules] = entry.split('|');
-      const fac = FACULTY[idx % FACULTY.length].name;
-      const r = db.prepare('INSERT INTO subjects(code, name, credits, sem, category, modules, faculty) VALUES(?, ?, ?, ?, ?, ?, ?)')
-        .run(code, name, Number(credits), sInt, category, modules, fac);
-      const subId = Number(r.lastInsertRowid);
-      subjectMap[code] = subId;
-    });
+  const existingSubCount = db.prepare('SELECT COUNT(*) c FROM subjects').get().c;
+  if (!existingSubCount) {
+    for (const [sem, list] of Object.entries(CATALOG)) {
+      const sInt = Number(sem);
+      list.forEach((entry, idx) => {
+        const [code, name, credits, category, modules] = entry.split('|');
+        const fac = FACULTY[idx % FACULTY.length].name;
+        const r = db.prepare('INSERT INTO subjects(code, name, credits, sem, category, modules, faculty) VALUES(?, ?, ?, ?, ?, ?, ?)')
+          .run(code, name, Number(credits), sInt, category, modules, fac);
+        const subId = Number(r.lastInsertRowid);
+        subjectMap[code] = subId;
+      });
+    }
+  } else {
+    db.prepare('SELECT id, code FROM subjects').all().forEach(s => { subjectMap[s.code] = s.id; });
   }
 
   // 6. Seed Attendance and Marks across both Sem 1 (1st Year) and Sem 4 (2nd Year)
@@ -150,13 +159,13 @@ function seed() {
     cohortSubjects.forEach((sub, subIdx) => {
       const total = 40 + (subIdx * 2);
       const attended = Math.round(total * (baseRate + (subIdx % 3 === 0 ? 0.03 : -0.02)));
-      db.prepare('INSERT INTO attendance(user_id, subject_id, attended, total) VALUES(?, ?, ?, ?)')
+      db.prepare('INSERT OR IGNORE INTO attendance(user_id, subject_id, attended, total) VALUES(?, ?, ?, ?)')
         .run(student.id, sub.id, attended, total);
 
       // Marks
       const internal = 21 + (sIdx % 4) + (subIdx % 3);
       const endsem = 55 + (sIdx % 12) + (subIdx % 6);
-      db.prepare('INSERT INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, ?, ?, ?)')
+      db.prepare('INSERT OR IGNORE INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, ?, ?, ?)')
         .run(student.id, sub.id, internal, endsem, 4, 5);
     });
   });
@@ -207,13 +216,16 @@ function seed() {
     { title: 'Cloud Computing & Distributed Systems - Consensus & Microservices', description: 'Paxos and Raft consensus protocols, Kubernetes deployment and API gateways.', dept: 'Computer Science & Engineering', year: 4, semester: 8, subject: 'CS801', type: 'Reference Book', file_name: 'CS801_Cloud_Distributed_Systems.pdf' }
   ];
 
-  sampleMaterials.forEach(m => {
-    const sId = subjectMap[m.subject] || null;
-    db.prepare(`
-      INSERT INTO study_materials(title, description, dept, year, semester, subject_id, material_type, file_name, uploaded_by, status)
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(m.title, m.description, m.dept, m.year, m.semester, sId, m.type, m.file_name, admin, 'Published');
-  });
+  const existingMatCount = db.prepare('SELECT COUNT(*) c FROM study_materials').get().c;
+  if (!existingMatCount) {
+    sampleMaterials.forEach(m => {
+      const sId = subjectMap[m.subject] || null;
+      db.prepare(`
+        INSERT INTO study_materials(title, description, dept, year, semester, subject_id, material_type, file_name, uploaded_by, status)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(m.title, m.description, m.dept, m.year, m.semester, sId, m.type, m.file_name, admin, 'Published');
+    });
+  }
 
   // 9. Seed Planner Tasks for Gaurav (Year 2) and Aarav (Year 1)
   const gauravTasks = [
@@ -311,7 +323,10 @@ function seed() {
     { title: 'Software Engineering: A Practitioner’s Approach - Roger Pressman', subject: 'Software Engineering', year: 2, sem: 4, description: 'Comprehensive guide to software architecture, UML modeling, agile sprints and CI/CD.', file_name: 'Pressman_Software_Engineering.pdf' },
     { title: 'Introduction to the Theory of Computation - Michael Sipser', subject: 'Theory of Computation', year: 2, sem: 4, description: 'Standard reference on regular languages, context-free grammars, Turing machines, and NP-completeness.', file_name: 'Sipser_Theory_Of_Computation.pdf' }
   ];
-  sampleEbooks.forEach(b => rec.add('library_file', null, b));
+  const existingLibCount = db.prepare("SELECT COUNT(*) c FROM records WHERE kind = 'library_file'").get().c;
+  if (!existingLibCount) {
+    sampleEbooks.forEach(b => rec.add('library_file', null, b));
+  }
 
   // 16. Seed Student Projects
   const pj = rec.add('project', me, { title: 'AI Smart Campus System', desc: 'Unified student services, attendance tracking and academic intelligence platform.', guide: 'Dr. Vikram Rao', status: 'Active', progress: 80 });
@@ -336,9 +351,16 @@ function ensureSeeded() {
 }
 
 if (require.main === module) {
-  reset();
-  seed();
-  console.log('Seeded successfully with 10 CSE Students, 10 IT Students, 1st-Year Freshman, and 5 Faculty.');
+  const forceReset = process.argv.includes('--reset') || process.argv.includes('-r');
+  if (forceReset) {
+    reset();
+    seed();
+    console.log('Database reset and re-seeded successfully with demo cohorts.');
+  } else {
+    ensureSeeded();
+    console.log('Database verified: all registered user accounts and demo data preserved.');
+    console.log('Pass --reset to wipe and re-seed clean.');
+  }
   console.log('Demo student (Year 2): 2024CS0042 / student123');
   console.log('Demo student (Year 1): 2026CS0001 / student123');
   console.log('Demo admin login:      ADMIN001 / student123');

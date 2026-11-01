@@ -78,14 +78,14 @@ function showLogin() {
             <option value="Computer Science & Engineering">CSE (Computer Science)</option>
           </select>
           <select id="authSem" class="form-input text-xs">
-            <option value="4" selected>Semester 4</option>
-            <option value="1">Semester 1</option>
-            <option value="2">Semester 2</option>
-            <option value="3">Semester 3</option>
-            <option value="5">Semester 5</option>
-            <option value="6">Semester 6</option>
-            <option value="7">Semester 7</option>
-            <option value="8">Semester 8</option>
+            <option value="1" selected>Semester 1 (Freshman)</option>
+            <option value="2">Semester 2 (Freshman)</option>
+            <option value="3">Semester 3 (Sophomore)</option>
+            <option value="4">Semester 4 (Sophomore)</option>
+            <option value="5">Semester 5 (Junior)</option>
+            <option value="6">Semester 6 (Junior)</option>
+            <option value="7">Semester 7 (Senior)</option>
+            <option value="8">Semester 8 (Senior)</option>
           </select>
         </div>
       </div>
@@ -117,17 +117,25 @@ function showLogin() {
           roll_no: val('authId'),
           password: $('authPass').value,
           dept: $('authDept')?.value || 'Computer Science & Engineering',
-          semester: Number($('authSem')?.value || 4)
+          semester: Number($('authSem')?.value || 1)
         };
+        if (!body.name || !body.email || !body.roll_no || !body.password) {
+          $('authErr').textContent = 'Please fill in name, email, roll number, and password.';
+          return;
+        }
+        if (body.password.length < 6) {
+          $('authErr').textContent = 'Password must be at least 6 characters.';
+          return;
+        }
+
         const regRes = await api('/auth/register', { body, noAuthRedirect: true });
-        toast(regRes.message || 'Registration successful! Please log in.', 'ok');
-        setMode('login');
-        $('authId').value = body.roll_no;
-        $('authPass').value = '';
-        $('authPass').focus();
-        $('authErr').className = 'text-emerald-400 text-xs font-semibold min-h-[1rem]';
-        $('authErr').textContent = 'Account created successfully! Please enter your password to log in.';
-        return;
+        if (regRes.token) {
+          localStorage.setItem('token', regRes.token);
+          toast(`Account created successfully! Welcome, ${regRes.user?.name || body.name}!`, 'ok');
+          el.remove();
+          boot();
+          return;
+        }
       }
 
       const body = { id: val('authId'), password: $('authPass').value };

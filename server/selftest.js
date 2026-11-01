@@ -73,6 +73,7 @@ const t = async (name, fn) => {
   };
   cleanupUser('TEST001');
   cleanupUser('TEST002');
+  cleanupUser('PERSIST99');
   // Clean up any test resource bookings
   const testBookings = rec.list('resource_booking', undefined);
   testBookings.filter(b => b.date && b.date.startsWith('2026-12-')).forEach(b => rec.remove(b.id));
@@ -115,6 +116,40 @@ const t = async (name, fn) => {
     });
     assert.strictEqual(reg2.status, 200);
     token2 = reg2.body.token;
+
+    // Case-insensitive login test (both roll_no and email)
+    const lowerRollLogin = await call('POST', '/auth/login', { id: 'test001', password: 'student123' });
+    assert.strictEqual(lowerRollLogin.status, 200, 'Lowercase roll_no login must succeed');
+
+    const emailLogin = await call('POST', '/auth/login', { id: 'test@smartcampus.edu', password: 'student123' });
+    assert.strictEqual(emailLogin.status, 200, 'Email-based login must succeed');
+  });
+
+  await t('user account persistence across server restart / ensureSeeded()', async () => {
+    const { ensureSeeded } = require('./seed');
+    const { checkpoint, db } = require('./db');
+
+    // Register a persistent user
+    const pReg = await call('POST', '/auth/register', {
+      name: 'Persistent User',
+      roll_no: 'PERSIST99',
+      email: 'persist99@smartcampus.edu',
+      password: 'student123',
+      semester: 1
+    });
+    assert.strictEqual(pReg.status, 200);
+
+    // Simulate server restart: WAL checkpoint truncate and ensureSeeded()
+    if (typeof checkpoint === 'function') checkpoint('TRUNCATE');
+    ensureSeeded();
+
+    // Verify user is preserved in SQLite
+    const inDb = db.prepare('SELECT id, roll_no FROM users WHERE roll_no = ?').get('PERSIST99');
+    assert.ok(inDb, 'Registered user must still exist in SQLite after ensureSeeded / server restart');
+
+    // Verify authentication succeeds after restart
+    const loginAfter = await call('POST', '/auth/login', { id: 'persist99', password: 'student123' });
+    assert.strictEqual(loginAfter.status, 200, 'User must authenticate successfully after restart');
   });
 
   await t('missing JWT is rejected with HTTP 401', async () => {

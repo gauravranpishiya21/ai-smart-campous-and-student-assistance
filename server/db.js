@@ -7,7 +7,24 @@ const fs = require('fs');
 const dataDir = path.join(__dirname, '..', 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 const db = new DatabaseSync(process.env.DB_FILE || path.join(dataDir, 'campus.db'));
-db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL; PRAGMA wal_autocheckpoint = 100;');
+
+const checkpoint = (mode = 'PASSIVE') => {
+  try { db.exec(`PRAGMA wal_checkpoint(${mode});`); } catch {}
+};
+
+// Checkpoint and persist WAL cleanly on server exit / shutdown
+process.on('exit', () => {
+  checkpoint('TRUNCATE');
+});
+process.on('SIGINT', () => {
+  checkpoint('TRUNCATE');
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  checkpoint('TRUNCATE');
+  process.exit(0);
+});
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users(
@@ -127,4 +144,4 @@ function notify(userId, message, type = 'info', dedupe = null) {
 function logAuto(job, detail) { db.prepare('INSERT INTO automation_log(job,detail) VALUES(?,?)').run(job, detail); }
 function addXp(userId, n) { db.prepare('UPDATE users SET xp = xp + ? WHERE id=?').run(n, userId); }
 
-module.exports = { db, rec, notify, logAuto, addXp };
+module.exports = { db, rec, notify, logAuto, addXp, checkpoint };

@@ -5,7 +5,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Server } = require('socket.io');
-const { db, rec, notify, addXp } = require('./db');
+const { db, rec, notify, addXp, checkpoint } = require('./db');
 const ai = require('./ai');
 const automation = require('./automation');
 const academicCal = require('./academicCalendar');
@@ -91,7 +91,8 @@ function auth(req, res, next) {
 // ---------- auth ----------
 api.post('/auth/login', authRateLimiter, h((req, res) => {
   const { id, password } = req.body || {};
-  const u = db.prepare('SELECT * FROM users WHERE roll_no=? OR email=?').get(String(id || '').trim(), String(id || '').trim().toLowerCase());
+  const cleanId = String(id || '').trim();
+  const u = db.prepare('SELECT * FROM users WHERE LOWER(roll_no) = LOWER(?) OR LOWER(email) = LOWER(?)').get(cleanId, cleanId);
   const ok = u && bcrypt.compareSync(String(password || ''), u.password_hash);
   rec.add('login', u?.id ?? null, { device: (req.headers['user-agent'] || 'Unknown').slice(0, 80), ip: req.ip, status: ok ? 'Success' : 'Failed' });
   if (!ok) return bad(res, 'Invalid ID or password.', 401);
@@ -102,17 +103,26 @@ api.post('/auth/register', authRateLimiter, h((req, res) => {
   if (!name || !roll_no || !email || String(password || '').length < 6) {
     return bad(res, 'Name, roll number, email and a password (6+ chars) are required.');
   }
+  const cleanRoll = String(roll_no || '').trim();
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanName = String(name || '').trim();
   const userDept = dept || 'Computer Science & Engineering';
-  const userYear = Number(year) || 2;
-  const userSem = Number(semester) || 4;
+  const userSem = Number(semester) || (year ? Number(year) * 2 - 1 : 4);
+  const userYear = Number(year) || Math.ceil(userSem / 2) || 2;
+
+  const existing = db.prepare('SELECT id, roll_no, email FROM users WHERE LOWER(roll_no) = LOWER(?) OR LOWER(email) = LOWER(?)').get(cleanRoll, cleanEmail);
+  if (existing) {
+    return bad(res, existing.email.toLowerCase() === cleanEmail ? 'Email address is already registered.' : 'Roll number is already registered.');
+  }
+
   try {
     const r = db.prepare(`
       INSERT INTO users(roll_no, name, email, password_hash, dept, year, semester, xp, role)
       VALUES(?, ?, ?, ?, ?, ?, ?, 100, 'student')
     `).run(
-      roll_no.trim(),
-      name.trim(),
-      email.trim().toLowerCase(),
+      cleanRoll,
+      cleanName,
+      cleanEmail,
       bcrypt.hashSync(password, 8),
       userDept,
       userYear,
@@ -139,13 +149,16 @@ api.post('/auth/register', authRateLimiter, h((req, res) => {
     rec.add('fee', u.id, { semester: userSem, assessed: 87000, paid: 87000 });
     notify(u.id, 'Welcome to the AI-Powered Smart Campus System! Your account is active.', 'info', 'welcome');
 
+    // Immediately checkpoint to disk so newly created user is durable across restarts
+    if (typeof checkpoint === 'function') checkpoint('PASSIVE');
+
     res.json({
-      message: 'Registration successful! You can now log in.',
+      message: 'Registration successful! You are now logged in.',
       token: jwt.sign({ id: u.id }, SECRET, { expiresIn: '7d' }),
       user: publicUser(u)
     });
   } catch (err) {
-    bad(res, 'Roll number or email already registered.');
+    bad(res, 'Failed to create account: ' + (err.message || 'Database error'));
   }
 }));
 api.get('/time', (req, res) => res.json({ now: new Date().toISOString() }));

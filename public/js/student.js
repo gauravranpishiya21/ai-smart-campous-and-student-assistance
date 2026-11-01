@@ -532,30 +532,30 @@ function fdateFull(dStr) {
 }
 
 window.loaders['academic-calendar'] = window.loadAcademicCalendar = async function (preferredYear, preferredSem) {
-  if (me && me.year) {
-    calState.enrolledYear = Number(me.year) || 2;
-    if (!calState.selectedYear) calState.selectedYear = calState.enrolledYear;
-  }
-  if (preferredYear) calState.selectedYear = Number(preferredYear);
+  const userYear = Number(me?.year) || 1;
+  const userSem = Number(me?.semester) || 1;
+  calState.enrolledYear = userYear;
+  calState.selectedYear = userYear;
 
-  // Set today if in 2026/2027 or default to 2026-11-11
+  // Set today if in 2026/2027 or default to 2026-11-08
   const t = today();
   if (t && (t.startsWith('2026') || t.startsWith('2027'))) {
     calState.selectedDate = t;
     const [yStr, mStr] = t.split('-');
     calState.currentMonth = new Date(Number(yStr), Number(mStr) - 1, 1);
+  } else {
+    calState.selectedDate = '2026-11-08';
+    calState.currentMonth = new Date(2026, 10, 1);
   }
 
   // Update enrolled year badge in header
   const enBadge = $('calEnrolledYearBadge');
   if (enBadge) {
-    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${calState.enrolledYear * 2})`;
+    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${userSem})`;
   }
 
-  // Update Year Cards active styling
+  // Update Year Cards active styling (locks strictly to enrolled year card)
   updateYearCardsUI();
-
-  // Fetch annual calendar data from backend
   try {
     const semParam = calState.selectedTerm === 'odd' ? (calState.selectedYear * 2 - 1) : (calState.selectedTerm === 'even' ? (calState.selectedYear * 2) : 4);
     const res = await api(`/calendar/annual?year=${calState.selectedYear}&sem=${semParam}`);
@@ -576,30 +576,57 @@ window.loaders['academic-calendar'] = window.loadAcademicCalendar = async functi
 };
 
 function updateYearCardsUI() {
+  const enYear = Number(me?.year) || calState.enrolledYear || 1;
+  const enSem = Number(me?.semester) || (enYear * 2 - 1);
+  calState.enrolledYear = enYear;
+  calState.selectedYear = enYear;
+
+  const cohortTitles = {
+    1: '1st Year Engineering (Freshmen)',
+    2: '2nd Year Engineering (Sophomore)',
+    3: '3rd Year Engineering (Junior)',
+    4: '4th Year Engineering (Senior)'
+  };
+
+  const titleEl = $('calEnrolledCohortTitle');
+  if (titleEl) titleEl.textContent = cohortTitles[enYear] || `Year ${enYear} Engineering`;
+
+  const yearNumEl = $('calEnrolledYearNum');
+  if (yearNumEl) yearNumEl.textContent = enYear;
+
+  const semNumEl = $('calEnrolledSemNum');
+  if (semNumEl) semNumEl.textContent = `Semester ${enSem}`;
+
+  const enBadge = $('calEnrolledYearBadge');
+  if (enBadge) enBadge.textContent = `Enrolled: Year ${enYear} (Sem ${enSem})`;
+
+  // SHOW ONLY THE ENROLLED YEAR CARD - HIDE ALL OTHER 3 YEARS
   for (let y = 1; y <= 4; y++) {
     const card = $(`calYearCard-${y}`);
     const tag = $(`calEnrolledTag-${y}`);
-    if (tag) {
-      if (y === calState.enrolledYear) tag.classList.remove('hidden');
-      else tag.classList.add('hidden');
-    }
     if (card) {
-      if (y === calState.selectedYear) {
+      if (y === enYear) {
+        card.classList.remove('hidden');
         card.classList.add('border-indigo-600', 'bg-indigo-50/70', 'dark:bg-indigo-950/60', 'ring-2', 'ring-indigo-500/20', 'shadow-md');
-        card.classList.remove('border-slate-200', 'dark:border-slate-700', 'bg-slate-50', 'dark:bg-slate-800/80');
+        card.classList.remove('cursor-pointer', 'hover:border-indigo-400');
+        card.style.pointerEvents = 'none'; // Lock card, cannot click to toggle
+        if (tag) tag.classList.remove('hidden');
       } else {
-        card.classList.remove('border-indigo-600', 'bg-indigo-50/70', 'dark:bg-indigo-950/60', 'ring-2', 'ring-indigo-500/20', 'shadow-md');
-        card.classList.add('border-slate-200', 'dark:border-slate-700', 'bg-slate-50', 'dark:bg-slate-800/80');
+        card.classList.add('hidden');
       }
     }
   }
 }
 
 window.switchCalendarYear = async function (year) {
-  calState.selectedYear = Number(year);
-  updateYearCardsUI();
-  await window.loadAcademicCalendar(calState.selectedYear);
-  toast(`Switched to Year ${year} Working Mechanism & Academic Calendar.`, 'info');
+  // Calendar is strictly locked to enrolled cohort
+  if (Number(year) !== calState.enrolledYear) {
+    if (typeof toast === 'function') {
+      toast(`Academic Calendar is locked to your enrolled Year ${calState.enrolledYear}.`, 'info');
+    }
+    return;
+  }
+  await window.loadAcademicCalendar(calState.enrolledYear);
 };
 
 window.switchCalendarTerm = function (term) {
@@ -618,99 +645,11 @@ window.switchCalendarTerm = function (term) {
   if (term === 'odd') {
     calState.currentMonth = new Date(2026, 10, 1); // Nov 2026
   } else if (term === 'even') {
-    calState.currentMonth = new Date(2027, 0, 1); // Jan 2027
+    calState.currentMonth = new Date(2027, 2, 1); // Mar 2027
   }
-
-  renderCalendarMonthGrid();
-  renderCalendarYearMatrix();
-  renderCalendarAgenda();
-};
-
-window.switchCalendarView = function (view) {
-  calState.activeView = view;
-  ['month', 'year', 'agenda'].forEach(v => {
-    const container = $(`calViewContainer-${v}`);
-    const tab = $(`tabView-${v}`);
-    if (container) {
-      if (v === view) container.classList.remove('hidden');
-      else container.classList.add('hidden');
-    }
-    if (tab) {
-      if (v === view) {
-        tab.classList.add('active', 'bg-white', 'dark:bg-slate-700', 'text-indigo-600', 'dark:text-indigo-400', 'shadow-sm');
-        tab.classList.remove('text-slate-600', 'dark:text-slate-400');
-      } else {
-        tab.classList.remove('active', 'bg-white', 'dark:bg-slate-700', 'text-indigo-600', 'dark:text-indigo-400', 'shadow-sm');
-        tab.classList.add('text-slate-600', 'dark:text-slate-400');
-      }
-    }
-  });
-
-  const monthNav = $('calMonthNavControls');
-  if (monthNav) {
-    if (view === 'month') monthNav.classList.remove('opacity-30', 'pointer-events-none');
-    else monthNav.classList.add('opacity-30', 'pointer-events-none');
-  }
-};
-
-window.filterCalendarCategory = function (category, btn) {
-  calState.activeCategory = category;
-  document.querySelectorAll('.cal-cat-pill').forEach(b => {
-    b.classList.remove('active', 'bg-slate-800', 'text-white', 'dark:bg-slate-700');
-  });
-  if (btn) btn.classList.add('active', 'bg-slate-800', 'text-white', 'dark:bg-slate-700');
-
   renderCalendarMonthGrid();
   renderCalendarAgenda();
 };
-
-window.changeCalendarMonth = function (delta) {
-  const cur = calState.currentMonth;
-  calState.currentMonth = new Date(cur.getFullYear(), cur.getMonth() + delta, 1);
-  renderCalendarMonthGrid();
-};
-
-window.jumpToCalendarToday = function () {
-  const t = today();
-  const [yStr, mStr] = t.split('-');
-  calState.currentMonth = new Date(Number(yStr), Number(mStr) - 1, 1);
-  calState.selectedDate = t;
-  renderCalendarMonthGrid();
-  window.selectCalendarDate(t);
-};
-
-function renderCalendarKpis() {
-  if (!calState.data || !calState.data.kpis) return;
-  const kpis = calState.data.kpis;
-
-  const wdVal = $('kpiWorkingDaysVal');
-  if (wdVal) wdVal.innerHTML = `${kpis.elapsedWorkingDays} <span class="text-sm font-bold text-slate-400">/ ${kpis.totalWorkingDays} Days</span>`;
-
-  const wdBar = $('kpiWorkingDaysBar');
-  if (wdBar) wdBar.style.width = `${kpis.progressPercent}%`;
-
-  const wdRem = $('kpiWorkingDaysRemain');
-  if (wdRem) wdRem.textContent = `${kpis.remainingWorkingDays} days left`;
-
-  const phTitle = $('kpiActivePhaseTitle');
-  if (phTitle) phTitle.textContent = kpis.activePhase || 'Core Instruction Block';
-
-  const phDesc = $('kpiActivePhaseDesc');
-  if (phDesc) phDesc.textContent = kpis.activePhaseDetails || 'University instructional and review phase.';
-
-  const exCount = $('kpiExamCountdown');
-  if (exCount) exCount.textContent = kpis.daysUntilNextExam > 0 ? `In ${kpis.daysUntilNextExam} Days` : 'In Progress';
-
-  const exTitle = $('kpiExamTitle');
-  if (exTitle) exTitle.textContent = kpis.nextExamTitle;
-
-  const exDate = $('kpiExamDate');
-  if (exDate) exDate.textContent = `${kpis.nextExamDate} · 50 Marks`;
-
-  const attCut = $('kpiAttendanceAuditDate');
-  if (attCut) attCut.textContent = `Audit Cutoff: ${kpis.attendanceCutoffDate}`;
-}
-
 function renderWorkingMechanismPipeline() {
   const container = $('calMechanismPipeline');
   if (!container || !calState.data || !calState.data.mechanism) return;

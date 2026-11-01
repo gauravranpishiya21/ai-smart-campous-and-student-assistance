@@ -611,7 +611,7 @@ window.postDiscussionFromDetail = () => act(async () => { await api(`/projects/$
 const streams = { engineering: ['Computer Science & Engineering', 'Electronics & Communication', 'Mechanical Engineering', 'Civil Engineering'], medical: ['MBBS', 'Nursing', 'Pharmacy'], commerce: ['B.Com', 'BBA', 'MBA'] };
 let learnState = { level: 0 };
 const learnShow = (lv) => { learnState.level = lv; ['deptContainer', 'subjectContainer', 'materialContainer'].forEach((id, i) => sel(id).classList.toggle('hidden', i !== lv - 1)); sel('streamGrid').classList.toggle('hidden', lv > 0); sel('learningBackBtn').classList.toggle('hidden', lv === 0); };
-L.learning = () => { if (window.loadStudyMaterials) window.loadStudyMaterials(); };
+L.learning = () => { if (window.loadStudyMaterials) return window.loadStudyMaterials(); };
 window.filterDepartments = (s) => { sel('currentStreamTitle').textContent = s[0].toUpperCase() + s.slice(1); sel('deptGrid').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${streams[s].map((d) => card(`<b>${esc(d)}</b>`, 'cursor-pointer hover:border-indigo-400" onclick="loadDeptSubjects(\'' + esc(d) + '\')')).join('')}</div>`; learnShow(1); };
 window.loadDeptSubjects = async (dept) => {
   sel('currentDeptTitle').textContent = dept; const s = await api('/syllabus');

@@ -532,11 +532,10 @@ function fdateFull(dStr) {
 }
 
 window.loaders['academic-calendar'] = window.loadAcademicCalendar = async function (preferredYear, preferredSem) {
-  if (me && me.year) {
-    calState.enrolledYear = Number(me.year) || 2;
-    if (!calState.selectedYear) calState.selectedYear = calState.enrolledYear;
-  }
-  if (preferredYear) calState.selectedYear = Number(preferredYear);
+  const userYear = (me && me.year) ? Number(me.year) : (preferredYear ? Number(preferredYear) : 1);
+  const userSem = (me && me.semester) ? Number(me.semester) : (preferredSem ? Number(preferredSem) : (userYear * 2 - 1));
+  calState.enrolledYear = userYear;
+  calState.selectedYear = userYear;
 
   // Set today if in 2026/2027 or default to 2026-11-11
   const t = today();
@@ -549,7 +548,8 @@ window.loaders['academic-calendar'] = window.loadAcademicCalendar = async functi
   // Update enrolled year badge in header
   const enBadge = $('calEnrolledYearBadge');
   if (enBadge) {
-    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${calState.enrolledYear * 2})`;
+    const s = (me && me.semester) ? me.semester : (calState.enrolledYear * 2 - 1);
+    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${s})`;
   }
 
   // Update Year Cards active styling

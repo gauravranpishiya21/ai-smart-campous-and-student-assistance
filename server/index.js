@@ -1153,8 +1153,8 @@ api.get('/academics/subjects', h((req, res) => {
 
 // 4. Year-Based Study Materials (Cohort Isolated)
 api.get('/materials', h((req, res) => {
-  const sem = req.user.semester || 1;
-  const year = req.user.year || Math.ceil(sem / 2);
+  const sem = Number(req.user.semester) || (req.user.year ? Number(req.user.year) * 2 - 1 : 1);
+  const year = Math.ceil(sem / 2);
   const dept = req.user.dept || 'Computer Science & Engineering';
 
   // Server-side strict isolation: ignore any client query params for year/sem

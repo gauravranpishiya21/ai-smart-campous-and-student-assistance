@@ -955,16 +955,16 @@ window.selectCalendarDate = function (dateStr) {
       listEl.innerHTML = `
         <div class="divide-y divide-slate-100">
           ${allDayTasks.map((t, idx) => `
-            <div class="grid grid-cols-12 gap-2 py-3 px-2 text-xs items-center hover:bg-slate-50 rounded-xl transition">
+            <div class="grid grid-cols-12 gap-2 py-3 px-3 text-xs items-center hover:bg-slate-50/80 rounded-xl transition">
               <div class="col-span-1 font-bold text-slate-400">${idx + 1}</div>
-              <div class="col-span-4 font-semibold text-slate-800 truncate" title="${esc(t.task)}">${esc(t.task)}</div>
+              <div class="col-span-3 font-semibold text-slate-800 truncate" title="${esc(t.task)}">${esc(t.task)}</div>
               <div class="col-span-2 text-center">
                 ${renderPriorityBadge(t.priority)}
               </div>
               <div class="col-span-2 text-center">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">${esc(t.status)}</span>
               </div>
-              <div class="col-span-1 text-center text-slate-500 text-[11px] truncate">${esc(t.deadline)}</div>
+              <div class="col-span-2 text-center text-slate-500 text-[11px] truncate">${esc(t.deadline)}</div>
               <div class="col-span-1 text-center text-slate-500 text-[11px] truncate">${esc(t.time)}</div>
               <div class="col-span-1 text-right flex items-center justify-end gap-1">
                 ${t.isCustom ? `
@@ -977,8 +977,7 @@ window.selectCalendarDate = function (dateStr) {
                   </button>
                 `}
               </div>
-            </div>
-          `).join('')}
+            </div>`).join('')}
         </div>
       `;
     }

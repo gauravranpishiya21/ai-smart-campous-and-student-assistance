@@ -504,79 +504,6 @@ window.filterCalendarTimeline = (type, btn) => { btn?.parentElement.querySelecto
 // =========================================================================
 // COMPREHENSIVE ANNUAL ACADEMIC CALENDAR & INSTITUTIONAL WORKING MECHANISM
 // =========================================================================
-
-// Custom Calendar Tasks for Date View
-function getCustomCalendarTasks(dateStr) {
-  try {
-    const raw = localStorage.getItem('smartcampus_cal_custom_tasks');
-    const all = raw ? JSON.parse(raw) : [];
-    return all.filter(t => t.date === dateStr);
-  } catch { return []; }
-}
-window.getCustomCalendarTasks = getCustomCalendarTasks;
-
-window.openAddCalendarTaskModal = function () {
-  const dateInput = $('calTaskDate');
-  if (dateInput) dateInput.value = calState.selectedDate || '2026-11-08';
-  const titleInput = $('calTaskTitle');
-  if (titleInput) titleInput.value = '';
-  openModal('addCalendarTaskModal');
-};
-
-window.saveCalendarCustomTask = function (e) {
-  e.preventDefault();
-  const title = val('calTaskTitle');
-  const date = val('calTaskDate');
-  const priority = val('calTaskPriority') || 'medium';
-  const time = val('calTaskTime') || '10:00';
-  if (!title || !date) return;
-
-  const newTask = {
-    id: 'custom-' + Date.now(),
-    title,
-    date,
-    priority,
-    time,
-    status: 'Scheduled',
-    createdAt: new Date().toISOString()
-  };
-
-  try {
-    const raw = localStorage.getItem('smartcampus_cal_custom_tasks');
-    const all = raw ? JSON.parse(raw) : [];
-    all.push(newTask);
-    localStorage.setItem('smartcampus_cal_custom_tasks', JSON.stringify(all));
-  } catch (err) {
-    console.error('Failed to save task:', err);
-  }
-
-  closeModal('addCalendarTaskModal');
-  toast('Task added to calendar.', 'ok');
-  window.selectCalendarDate(date);
-};
-
-window.deleteCalendarCustomTask = function (taskId) {
-  try {
-    const raw = localStorage.getItem('smartcampus_cal_custom_tasks');
-    let all = raw ? JSON.parse(raw) : [];
-    all = all.filter(t => t.id !== taskId);
-    localStorage.setItem('smartcampus_cal_custom_tasks', JSON.stringify(all));
-    toast('Task deleted.', 'info');
-    window.selectCalendarDate(calState.selectedDate);
-  } catch (err) {
-    console.error('Failed to delete task:', err);
-  }
-};
-
-function renderPriorityBadge(priority) {
-  if (priority === 'high') {
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200"><span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>High load</span>`;
-  }
-  if (priority === 'medium') {
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>Medium</span>`;
-  }
-  return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>Low</span>`;
-}
 let calState = {
   selectedYear: 2,
   enrolledYear: 2,
@@ -605,10 +532,11 @@ function fdateFull(dStr) {
 }
 
 window.loaders['academic-calendar'] = window.loadAcademicCalendar = async function (preferredYear, preferredSem) {
-  const userYear = (me && me.year) ? Number(me.year) : (preferredYear ? Number(preferredYear) : 1);
-  const userSem = (me && me.semester) ? Number(me.semester) : (preferredSem ? Number(preferredSem) : (userYear * 2 - 1));
-  calState.enrolledYear = userYear;
-  calState.selectedYear = userYear;
+  if (me && me.year) {
+    calState.enrolledYear = Number(me.year) || 2;
+    if (!calState.selectedYear) calState.selectedYear = calState.enrolledYear;
+  }
+  if (preferredYear) calState.selectedYear = Number(preferredYear);
 
   // Set today if in 2026/2027 or default to 2026-11-11
   const t = today();
@@ -621,8 +549,7 @@ window.loaders['academic-calendar'] = window.loadAcademicCalendar = async functi
   // Update enrolled year badge in header
   const enBadge = $('calEnrolledYearBadge');
   if (enBadge) {
-    const s = (me && me.semester) ? me.semester : (calState.enrolledYear * 2 - 1);
-    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${s})`;
+    enBadge.textContent = `Enrolled: Year ${calState.enrolledYear} (Sem ${calState.enrolledYear * 2})`;
   }
 
   // Update Year Cards active styling
@@ -640,7 +567,7 @@ window.loaders['academic-calendar'] = window.loadAcademicCalendar = async functi
     renderCalendarMonthGrid();
     renderCalendarYearMatrix();
     renderCalendarAgenda();
-    window.selectCalendarDate(calState.selectedDate || '2026-11-08');
+    window.selectCalendarDate(calState.selectedDate || '2026-11-11');
     renderUpcomingDeadlines();
   } catch (err) {
     console.error('Failed to load annual calendar:', err);
@@ -859,19 +786,19 @@ function renderCalendarMonthGrid() {
   const grid = $('calMonthGrid');
   if (!grid || !calState.data) return;
 
-  const cur = calState.currentMonth || new Date(2026, 10, 1);
+  const cur = calState.currentMonth;
   const year = cur.getFullYear();
   const month = cur.getMonth();
 
   const titleEl = $('calCurrentMonthTitle');
   if (titleEl) titleEl.textContent = `${CAL_MONTHS[month]} ${year}`;
 
-  const jumpSel = $('calMonthJumpSelect');
-  if (jumpSel) jumpSel.value = `${year}-${String(month + 1).padStart(2, '0')}`;
-
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayWeekday = new Date(year, month, 1).getDay(); // 0 is Sunday
-  const shiftIndex = (firstDayWeekday + 6) % 7; // Mon=0, Sun=6
+  // Convert Sunday=0 to Monday=0 (Mon=0, Tue=1, ..., Sun=6)
+  const shiftIndex = (firstDayWeekday + 6) % 7;
+
+  // Previous month trailing days
   const prevMonthDays = new Date(year, month, 0).getDate();
 
   const allEvents = calState.data.events || [];
@@ -881,88 +808,107 @@ function renderCalendarMonthGrid() {
     eventsByDate[e.date].push(e);
   });
 
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
   let html = '';
 
-  // 1. Previous month trailing days (e.g. 26..31 for Nov 2026)
+  // Leading empty / prev-month cells
   for (let i = shiftIndex - 1; i >= 0; i--) {
     const dNum = prevMonthDays - i;
     html += `
-      <div class="flex flex-col items-center justify-center text-slate-400 text-sm font-normal select-none py-1">
-        <div class="w-10 h-10 flex items-center justify-center">${dNum}</div>
-        <div class="h-2"></div>
+      <div class="min-h-[92px] p-2 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 opacity-30 select-none">
+        <span class="text-xs font-semibold text-slate-400">${dNum}</span>
       </div>
     `;
   }
 
-  // 2. Current month days (1..daysInMonth)
+  // Current month active cells
+  const todayStr = today();
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const isSelected = (calState.selectedDate === dateStr);
-    const isDay1 = (day === 1 && !isSelected);
+    const dayOfWeek = (shiftIndex + day - 1) % 7; // 0=Mon, 5=Sat, 6=Sun
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === calState.selectedDate;
+    const isSunday = dayOfWeek === 6;
 
+    // Filter events by selected category & term
     let dayEvents = eventsByDate[dateStr] || [];
-    const customTasks = getCustomCalendarTasks(dateStr);
-    const totalTasks = [...dayEvents, ...customTasks];
+    if (calState.activeCategory !== 'all') {
+      dayEvents = dayEvents.filter(e => e.type === calState.activeCategory);
+    }
+    if (calState.selectedTerm === 'odd') {
+      dayEvents = dayEvents.filter(e => e.sem === 'odd' || e.sem === 1 || e.sem === 3 || e.sem === 5 || e.sem === 7 || e.sem === 'all');
+    } else if (calState.selectedTerm === 'even') {
+      dayEvents = dayEvents.filter(e => e.sem === 'even' || e.sem === 2 || e.sem === 4 || e.sem === 6 || e.sem === 8 || e.sem === 'all');
+    }
 
-    const hasHigh = totalTasks.some(t => t.type === 'exam' || t.priority === 'high' || t.type === 'placement');
-    const hasMed = totalTasks.some(t => t.type === 'assignment' || t.priority === 'medium' || t.type === 'class');
-    const hasLow = totalTasks.some(t => t.type === 'holiday' || t.priority === 'low');
-
-    let dotHtml = '';
-    if (hasHigh) dotHtml = '<span class="w-1.5 h-1.5 rounded-full bg-[#EF4444] inline-block"></span>';
-    else if (hasMed) dotHtml = '<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B] inline-block"></span>';
-    else if (hasLow) dotHtml = '<span class="w-1.5 h-1.5 rounded-full bg-[#10B981] inline-block"></span>';
-
+    // Determine cell border/ring styling
+    let cellClasses = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-indigo-400';
     if (isSelected) {
-      // Solid purple/indigo pill with soft shadow (matching Day 8 in screenshot)
-      html += `
-        <div class="flex flex-col items-center justify-center cursor-pointer transition transform active:scale-95 py-1" onclick="window.selectCalendarDate('${dateStr}')">
-          <div class="w-10 h-10 rounded-2xl bg-[#5B5FC7] text-white font-bold flex items-center justify-center text-sm shadow-lg shadow-indigo-500/35">
-            ${day}
-          </div>
-          ${dotHtml ? `<div class="h-2 flex items-center justify-center">${dotHtml}</div>` : '<div class="h-2"></div>'}
+      cellClasses = 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-50/40 dark:bg-indigo-950/50 shadow-md';
+    } else if (isToday) {
+      cellClasses = 'border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20';
+    } else if (isSunday) {
+      cellClasses = 'border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60';
+    }
+
+    // Badges / pills rendering
+    let pillsHtml = '';
+    dayEvents.slice(0, 2).forEach(ev => {
+      let badgeColor = 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300';
+      if (ev.type === 'exam') badgeColor = 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-extrabold';
+      else if (ev.type === 'assignment') badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold';
+      else if (ev.type === 'holiday') badgeColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold';
+      else if (ev.type === 'placement') badgeColor = 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-bold';
+
+      pillsHtml += `
+        <div class="px-1.5 py-0.5 rounded text-[10px] truncate ${badgeColor}" title="${esc(ev.title)}">
+          ${esc(ev.title)}
         </div>
       `;
-    } else if (isDay1) {
-      // Outlined pill (matching Day 1 in screenshot)
-      html += `
-        <div class="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 rounded-2xl transition py-1" onclick="window.selectCalendarDate('${dateStr}')">
-          <div class="w-10 h-10 rounded-2xl border-2 border-[#5B5FC7] text-[#5B5FC7] font-bold flex items-center justify-center text-sm">
-            ${day}
-          </div>
-          ${dotHtml ? `<div class="h-2 flex items-center justify-center">${dotHtml}</div>` : '<div class="h-2"></div>'}
-        </div>
-      `;
-    } else {
-      // Standard day number
-      html += `
-        <div class="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100/70 rounded-2xl transition text-slate-700 text-sm font-medium py-1" onclick="window.selectCalendarDate('${dateStr}')">
-          <div class="w-10 h-10 flex items-center justify-center">
-            ${day}
-          </div>
-          ${dotHtml ? `<div class="h-2 flex items-center justify-center">${dotHtml}</div>` : '<div class="h-2"></div>'}
+    });
+
+    if (dayEvents.length > 2) {
+      pillsHtml += `
+        <div class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 text-right pr-1">
+          +${dayEvents.length - 2} more
         </div>
       `;
     }
+
+    // Instructional Day indicator (if regular teaching day Mon-Fri)
+    let instTag = '';
+    if (!isSunday && dayEvents.length === 0) {
+      instTag = `<span class="text-[9px] font-bold text-slate-300 dark:text-slate-600">Lecture</span>`;
+    }
+
+    html += `
+      <div class="cal-day-cell min-h-[96px] p-2 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${cellClasses}" onclick="window.selectCalendarDate('${dateStr}')">
+        <div class="flex items-center justify-between mb-1">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${isToday ? 'bg-indigo-600 text-white' : (isSunday ? 'text-rose-500' : 'text-slate-800 dark:text-white')}">
+            ${day}
+          </span>
+          ${instTag}
+        </div>
+        <div class="space-y-1 overflow-hidden">
+          ${pillsHtml}
+        </div>
+      </div>
+    `;
   }
 
-  // 3. Next month trailing days to complete 42 cells (6 rows x 7 cols)
+  // Trailing next-month cells
   const totalRendered = shiftIndex + daysInMonth;
-  const nextMonthTrailing = 42 - totalRendered;
-  for (let i = 1; i <= nextMonthTrailing; i++) {
+  const trailingCells = (7 - (totalRendered % 7)) % 7;
+  for (let i = 1; i <= trailingCells; i++) {
     html += `
-      <div class="flex flex-col items-center justify-center text-slate-400 text-sm font-normal select-none py-1">
-        <div class="w-10 h-10 flex items-center justify-center">${i}</div>
-        <div class="h-2"></div>
+      <div class="min-h-[92px] p-2 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 opacity-30 select-none">
+        <span class="text-xs font-semibold text-slate-400">${i}</span>
       </div>
     `;
   }
 
   grid.innerHTML = html;
 }
+
 function renderCalendarYearMatrix() {
   const container = $('calYearMatrixGrid');
   if (!container || !calState.data) return;
@@ -1095,58 +1041,24 @@ window.selectCalendarDate = function (dateStr) {
   const titleEl = $('calDayBriefingTitle');
   if (titleEl) titleEl.textContent = fdateFull(dateStr);
 
-  // Re-render grid to reflect active selected day
-  renderCalendarMonthGrid();
-
   if (!calState.data) return;
 
   const allEvents = calState.data.events || [];
-  let dayEvents = allEvents.filter(e => e.date === dateStr);
-  const customTasks = (typeof getCustomCalendarTasks === 'function') ? getCustomCalendarTasks(dateStr) : [];
-
-  const mappedEvents = dayEvents.map(e => {
-    let priority = 'medium';
-    if (e.type === 'exam' || e.type === 'placement') priority = 'high';
-    else if (e.type === 'holiday') priority = 'low';
-
-    let status = 'Scheduled';
-    if (e.type === 'holiday') status = 'Holiday';
-    else if (e.type === 'exam') status = 'Mandatory';
-
-    return {
-      id: e.id,
-      task: e.title,
-      priority: priority,
-      status: status,
-      deadline: fdate(e.date),
-      time: e.time || '09:00 AM',
-      isCustom: false
-    };
-  });
-
-  const mappedCustom = customTasks.map(t => ({
-    id: t.id,
-    task: t.title,
-    priority: t.priority || 'medium',
-    status: t.status || 'Scheduled',
-    deadline: fdate(t.date),
-    time: t.time || '10:00 AM',
-    isCustom: true
-  }));
-
-  const allDayTasks = [...mappedEvents, ...mappedCustom];
+  const dayEvents = allEvents.filter(e => e.date === dateStr);
 
   const countEl = $('calDayEventsCount');
-  if (countEl) countEl.textContent = `${allDayTasks.length} Event${allDayTasks.length === 1 ? '' : 's'}`;
+  if (countEl) countEl.textContent = `${dayEvents.length} Activity${dayEvents.length === 1 ? '' : 'ies'}`;
 
-  // Keep auxiliary day badges updated for tests
+  // Calculate day index relative to Aug 01, 2026
   const startDate = new Date('2026-08-01T00:00:00');
   const thisDate = new Date(dateStr + 'T00:00:00');
   const diffDays = Math.max(0, Math.floor((thisDate - startDate) / (1000 * 60 * 60 * 24)));
   const dayIndex = Math.min(90, Math.max(1, Math.round(diffDays * (5 / 7))));
+
   const badgeEl = $('calDayInstructionalBadge');
   if (badgeEl) badgeEl.textContent = `Day #${dayIndex} of 90`;
 
+  // Determine stage context for this date
   const mech = calState.data.mechanism;
   const stageEl = $('calDayMechStage');
   const notesEl = $('calDayMechNotes');
@@ -1156,49 +1068,32 @@ window.selectCalendarDate = function (dateStr) {
     notesEl.textContent = stage.details;
   }
 
+  // Populate events list for this day
   const listEl = $('calDayEventsList');
   if (listEl) {
-    if (!allDayTasks.length) {
-      // EXACT Empty State matching Image 2
+    if (!dayEvents.length) {
       listEl.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-16 text-center select-none">
-          <div class="w-16 h-16 rounded-2xl bg-slate-50 text-slate-300 flex items-center justify-center text-3xl mx-auto mb-3 border border-slate-100 shadow-sm">
-            <i class="fas fa-clipboard-list text-slate-300"></i>
-          </div>
-          <p class="text-slate-400 text-sm font-normal">There are no tasks for the chosen day yet.</p>
+        <div class="p-3.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
+          <p class="text-xs text-slate-400 font-medium">Regular instructional timetable schedule.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">No examinations or project deadlines on this day.</p>
         </div>
       `;
     } else {
-      // Clean Table Rows matching Image 2 header columns: Nº | Task | Priority | Status | Deadline | Time | Action
-      listEl.innerHTML = `
-        <div class="divide-y divide-slate-100">
-          ${allDayTasks.map((t, idx) => `
-            <div class="grid grid-cols-12 gap-2 py-3 px-4 text-xs items-center hover:bg-slate-50 rounded-xl transition">
-              <div class="col-span-1 font-bold text-slate-400">${idx + 1}</div>
-              <div class="col-span-4 font-semibold text-slate-800 truncate" title="${esc(t.task)}">${esc(t.task)}</div>
-              <div class="col-span-2 text-center">
-                ${renderPriorityBadge(t.priority)}
-              </div>
-              <div class="col-span-2 text-center">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">${esc(t.status)}</span>
-              </div>
-              <div class="col-span-1 text-center text-slate-500 text-[11px] truncate">${esc(t.deadline)}</div>
-              <div class="col-span-1 text-center text-slate-500 text-[11px]">${esc(t.time)}</div>
-              <div class="col-span-1 text-right">
-                ${t.isCustom ? `
-                  <button type="button" class="text-slate-400 hover:text-rose-600 transition p-1" onclick="window.deleteCalendarCustomTask('${t.id}')" title="Delete Task">
-                    <i class="fas fa-trash-can text-xs"></i>
-                  </button>
-                ` : `
-                  <button type="button" class="text-indigo-600 hover:text-indigo-800 transition p-1" onclick="window.syncCalendarToPlanner()" title="Synced with Planner">
-                    <i class="fas fa-check text-xs"></i>
-                  </button>
-                `}
-              </div>
+      listEl.innerHTML = dayEvents.map(e => `
+        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-start justify-between gap-2.5">
+          <div>
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">${esc(e.type)}</span>
+              <span class="text-[10px] font-bold text-slate-500">${esc(e.time || '09:00 AM')}</span>
             </div>
-          `).join('')}
+            <h5 class="text-xs font-bold text-slate-900 dark:text-white mb-0.5">${esc(e.title)}</h5>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400"><i class="fas fa-location-dot mr-1"></i> ${esc(e.location || 'Campus')}</p>
+          </div>
+          <button class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0 transition" title="Inspect" onclick="window.openAcademicEventModal('${e.id}')">
+            <i class="fas fa-arrow-up-right-from-square"></i>
+          </button>
         </div>
-      `;
+      `).join('');
     }
   }
 };

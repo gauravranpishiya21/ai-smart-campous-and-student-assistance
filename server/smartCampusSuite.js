@@ -16,7 +16,7 @@ function verifyFaceAttendance(userId, { imageBase64, lat, lng, zone } = {}) {
   if (!user) throw new Error('Student record not found.');
 
   const day = new Date().getDay();
-  if (day === 0) throw new Error('No scheduled classes on Sundays.');
+  const isWeekend = day === 0 || day === 6;
 
   // Validate Geofence (Simulated Campus Boundary: ~28.545, 77.192 within 15km bounding box for demo flexibility)
   const campusLat = 28.5450, campusLng = 77.1920;

@@ -509,7 +509,7 @@ let calState = {
   enrolledYear: 2,
   selectedTerm: 'all', // 'all', 'odd', 'even'
   currentMonth: new Date(2026, 10, 1), // Nov 2026
-  selectedDate: '2026-11-11',
+  selectedDate: '2026-11-08',
   activeView: 'month', // 'month', 'year', 'agenda'
   activeCategory: 'all', // 'all', 'class', 'exam', 'assignment', 'holiday', 'placement'
   compactMechanism: false,
@@ -782,6 +782,45 @@ window.toggleMechanismView = function () {
   }
 };
 
+function getCustomCalendarTasks(dateStr) {
+  try {
+    const all = JSON.parse(localStorage.getItem('smartcampus_calendar_tasks') || '[]');
+    return dateStr ? all.filter(t => t.date === dateStr) : all;
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomCalendarTask(task) {
+  try {
+    const all = getCustomCalendarTasks();
+    all.push(task);
+    localStorage.setItem('smartcampus_calendar_tasks', JSON.stringify(all));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function removeCustomCalendarTask(id) {
+  try {
+    let all = getCustomCalendarTasks();
+    all = all.filter(t => t.id !== id);
+    localStorage.setItem('smartcampus_calendar_tasks', JSON.stringify(all));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderPriorityBadge(p) {
+  if (p === 'high') {
+    return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-200"><span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>High load</span>`;
+  }
+  if (p === 'low') {
+    return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>Low</span>`;
+  }
+  return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>Medium</span>`;
+}
+
 function renderCalendarMonthGrid() {
   const grid = $('calMonthGrid');
   if (!grid || !calState.data) return;
@@ -808,282 +847,100 @@ function renderCalendarMonthGrid() {
     eventsByDate[e.date].push(e);
   });
 
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   let html = '';
 
-  // Leading empty / prev-month cells
+  // 1. Previous month trailing days (e.g. 26..31 for Nov 2026)
   for (let i = shiftIndex - 1; i >= 0; i--) {
     const dNum = prevMonthDays - i;
     html += `
-      <div class="min-h-[105px] p-2.5 rounded-2xl bg-slate-900/30 border border-slate-800/40 opacity-25 select-none flex flex-col justify-between">
-        <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-slate-500">${dNum}</span>
+      <div class="w-9 h-9 mx-auto rounded-xl flex items-center justify-center font-medium text-slate-300 text-xs select-none">
+        ${dNum}
       </div>
     `;
   }
 
-  // Current month active cells
-  const todayStr = today();
+  // 2. Days of the current month (1..daysInMonth)
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayOfWeek = (shiftIndex + day - 1) % 7; // 0=Mon, 5=Sat, 6=Sun
-    const isToday = dateStr === todayStr;
-    const isSelected = dateStr === calState.selectedDate;
-    const isSunday = dayOfWeek === 6;
+    const isSelected = (calState.selectedDate === dateStr);
+    const isToday = (dateStr === todayStr) || (day === 1 && month === 10 && year === 2026 && !isSelected);
 
-    // Filter events by selected category & term
     let dayEvents = eventsByDate[dateStr] || [];
-    if (calState.activeCategory !== 'all') {
-      dayEvents = dayEvents.filter(e => e.type === calState.activeCategory);
-    }
     if (calState.selectedTerm === 'odd') {
       dayEvents = dayEvents.filter(e => e.sem === 'odd' || e.sem === 1 || e.sem === 3 || e.sem === 5 || e.sem === 7 || e.sem === 'all');
     } else if (calState.selectedTerm === 'even') {
       dayEvents = dayEvents.filter(e => e.sem === 'even' || e.sem === 2 || e.sem === 4 || e.sem === 6 || e.sem === 8 || e.sem === 'all');
     }
+    const customTasks = getCustomCalendarTasks(dateStr);
+    const totalTasks = [...dayEvents, ...customTasks];
 
-    // Event category presence
-    const hasExam = dayEvents.some(e => e.type === 'exam');
-    const hasHoliday = dayEvents.some(e => e.type === 'holiday');
-    const hasAssignment = dayEvents.some(e => e.type === 'assignment');
-    const hasPlacement = dayEvents.some(e => e.type === 'placement' || e.type === 'meeting');
-    const hasClass = dayEvents.some(e => e.type === 'class');
+    const hasHigh = totalTasks.some(t => t.type === 'exam' || t.priority === 'high' || t.type === 'placement');
+    const hasMed = totalTasks.some(t => t.type === 'assignment' || t.priority === 'medium' || t.type === 'class');
+    const hasLow = totalTasks.some(t => t.type === 'holiday' || t.priority === 'low');
 
-    // COLOR-CODED CIRCLE HIGHLIGHT FOR DATE
-    let circleHtml = '';
-    let cellBg = 'bg-slate-900/80 border-slate-800 hover:border-slate-600';
-    let typeBadge = '';
-
-    if (hasExam) {
-      // 🔴 RED CIRCLE for Exam / CIE tests
-      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#E10600] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-red-600/50 ring-2 ring-red-400/50 animate-pulse">${day}</div>`;
-      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">Exam</span>`;
-      cellBg = 'bg-gradient-to-b from-red-950/30 to-slate-900/90 border-red-500/50 hover:border-red-400 shadow-sm shadow-red-950/40';
-    } else if (hasHoliday) {
-      // 🟢 GREEN CIRCLE for Gazetted & Festival Holidays
-      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#10b981] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-emerald-600/50 ring-2 ring-emerald-400/50">${day}</div>`;
-      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Holiday</span>`;
-      cellBg = 'bg-gradient-to-b from-emerald-950/30 to-slate-900/90 border-emerald-500/50 hover:border-emerald-400 shadow-sm shadow-emerald-950/40';
-    } else if (hasAssignment) {
-      // 🟠 AMBER CIRCLE for Project Reviews & Vivas
-      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#f59e0b] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-amber-600/50 ring-2 ring-amber-400/50">${day}</div>`;
-      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">Review</span>`;
-      cellBg = 'bg-gradient-to-b from-amber-950/30 to-slate-900/90 border-amber-500/50 hover:border-amber-400 shadow-sm shadow-amber-950/40';
-    } else if (hasPlacement) {
-      // 🟣 PURPLE CIRCLE for Placements & Campus Events
-      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#8b5cf6] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-purple-600/50 ring-2 ring-purple-400/50">${day}</div>`;
-      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30">Event</span>`;
-      cellBg = 'bg-gradient-to-b from-purple-950/30 to-slate-900/90 border-purple-500/50 hover:border-purple-400 shadow-sm shadow-purple-950/40';
-    } else if (hasClass) {
-      // 🔵 INDIGO CIRCLE for Classes & Academic Milestones
-      circleHtml = `<div class="w-7 h-7 rounded-full bg-[#6366f1] text-white font-black flex items-center justify-center text-xs shadow-lg shadow-indigo-600/50 ring-2 ring-indigo-400/50">${day}</div>`;
-      typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Academic</span>`;
-      cellBg = 'bg-gradient-to-b from-indigo-950/30 to-slate-900/90 border-indigo-500/50 hover:border-indigo-400 shadow-sm shadow-indigo-950/40';
-    } else {
-      // Regular Days
-      if (isToday) {
-        circleHtml = `<div class="w-7 h-7 rounded-full bg-slate-100 text-slate-900 font-black flex items-center justify-center text-xs ring-4 ring-[#E10600] shadow-md shadow-red-500/30">${day}</div>`;
-        typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">Today</span>`;
-        cellBg = 'bg-slate-900 border-red-500/60 shadow-md';
-      } else if (isSunday) {
-        circleHtml = `<div class="w-7 h-7 rounded-full bg-rose-950/30 text-rose-400 font-bold flex items-center justify-center text-xs">${day}</div>`;
-        cellBg = 'bg-slate-900/50 border-slate-800/80';
-      } else {
-        circleHtml = `<div class="w-7 h-7 rounded-full bg-slate-800/80 text-slate-300 font-medium flex items-center justify-center text-xs hover:bg-slate-700 transition">${day}</div>`;
-        typeBadge = `<span class="text-[9px] font-bold text-slate-500">Lecture</span>`;
-      }
-    }
-
-    // Selected cell ring highlight
-    let selectHighlight = '';
     if (isSelected) {
-      selectHighlight = 'ring-2 ring-white shadow-xl scale-[1.02] z-10 border-white/80';
-    }
-
-    // Mini Colored Dot Indicators for multiple event types
-    const dots = [];
-    if (hasExam) dots.push('<span class="w-2 h-2 rounded-full bg-[#E10600] shadow-sm shadow-red-500" title="Exam"></span>');
-    if (hasHoliday) dots.push('<span class="w-2 h-2 rounded-full bg-[#10b981] shadow-sm shadow-emerald-500" title="Holiday"></span>');
-    if (hasAssignment) dots.push('<span class="w-2 h-2 rounded-full bg-[#f59e0b] shadow-sm shadow-amber-500" title="Review"></span>');
-    if (hasPlacement) dots.push('<span class="w-2 h-2 rounded-full bg-[#8b5cf6] shadow-sm shadow-purple-500" title="Event"></span>');
-    if (hasClass && !hasExam && !hasHoliday && !hasAssignment && !hasPlacement) dots.push('<span class="w-2 h-2 rounded-full bg-[#6366f1] shadow-sm shadow-indigo-500" title="Class"></span>');
-    const dotsHtml = dots.length > 1 ? `<div class="flex items-center gap-1 mt-1">${dots.join('')}</div>` : '';
-
-    // Badges / Event Titles inside the day card
-    let pillsHtml = '';
-    dayEvents.slice(0, 2).forEach(ev => {
-      let badgeStyle = 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
-      if (ev.type === 'exam') badgeStyle = 'bg-red-500/20 text-red-300 border-red-500/40 font-bold';
-      else if (ev.type === 'holiday') badgeStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold';
-      else if (ev.type === 'assignment') badgeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold';
-      else if (ev.type === 'placement' || ev.type === 'meeting') badgeStyle = 'bg-purple-500/20 text-purple-300 border-purple-500/40 font-bold';
-
-      pillsHtml += `
-        <div class="px-1.5 py-0.5 rounded text-[10px] truncate border ${badgeStyle}" title="${esc(ev.title)}">
-          ${esc(ev.title)}
+      // Solid purple/indigo pill with soft shadow (matching Day 8 in screenshot)
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl bg-[#5B5FC7] text-white font-bold flex items-center justify-center text-sm shadow-lg shadow-indigo-500/35 cursor-pointer transition transform active:scale-95" onclick="window.selectCalendarDate('${dateStr}')">
+          ${day}
         </div>
       `;
-    });
-
-    if (dayEvents.length > 2) {
-      pillsHtml += `
-        <div class="text-[9px] font-bold text-red-400 text-right pr-1">
-          +${dayEvents.length - 2} more
+    } else if (isToday) {
+      // Outlined purple/indigo pill (matching Day 1 in screenshot)
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl border-2 border-[#5B5FC7] text-[#5B5FC7] font-bold flex items-center justify-center text-sm cursor-pointer hover:bg-indigo-50 transition transform active:scale-95" onclick="window.selectCalendarDate('${dateStr}')">
+          ${day}
+        </div>
+      `;
+    } else if (hasHigh) {
+      // High load date (Red dot)
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl flex flex-col items-center justify-center relative font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer transition" onclick="window.selectCalendarDate('${dateStr}')">
+          <span class="text-xs leading-none">${day}</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444] mt-1"></span>
+        </div>
+      `;
+    } else if (hasMed) {
+      // Medium load date (Orange/Amber dot)
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl flex flex-col items-center justify-center relative font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer transition" onclick="window.selectCalendarDate('${dateStr}')">
+          <span class="text-xs leading-none">${day}</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B] mt-1"></span>
+        </div>
+      `;
+    } else if (hasLow) {
+      // Low load date (Green dot)
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl flex flex-col items-center justify-center relative font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer transition" onclick="window.selectCalendarDate('${dateStr}')">
+          <span class="text-xs leading-none">${day}</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-[#10B981] mt-1"></span>
+        </div>
+      `;
+    } else {
+      // Normal weekday with no special milestones
+      html += `
+        <div class="w-9 h-9 mx-auto rounded-xl flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 text-xs cursor-pointer transition" onclick="window.selectCalendarDate('${dateStr}')">
+          ${day}
         </div>
       `;
     }
-
-    html += `
-      <div class="cal-day-cell min-h-[105px] p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${cellBg} ${selectHighlight}" onclick="window.selectCalendarDate('${dateStr}')">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            ${circleHtml}
-            ${typeBadge}
-          </div>
-          ${dotsHtml}
-        </div>
-        <div class="space-y-1 mt-1 overflow-hidden">
-          ${pillsHtml}
-        </div>
-      </div>
-    `;
   }
 
-  // Trailing next-month cells
+  // 3. Trailing cells into next month to complete the 7-col grid (e.g. 1..6 for Nov 2026)
   const totalRendered = shiftIndex + daysInMonth;
-  const trailingCells = (7 - (totalRendered % 7)) % 7;
-  for (let i = 1; i <= trailingCells; i++) {
+  const remainingCells = (totalRendered % 7 === 0) ? 0 : (7 - (totalRendered % 7));
+  for (let d = 1; d <= remainingCells; d++) {
     html += `
-      <div class="min-h-[105px] p-2.5 rounded-2xl bg-slate-900/30 border border-slate-800/40 opacity-25 select-none flex flex-col justify-between">
-        <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-slate-500">${i}</span>
+      <div class="w-9 h-9 mx-auto rounded-xl flex items-center justify-center font-medium text-slate-300 text-xs select-none">
+        ${d}
       </div>
     `;
   }
 
   grid.innerHTML = html;
-}
-function renderCalendarYearMatrix() {
-  const container = $('calYearMatrixGrid');
-  if (!container || !calState.data) return;
-
-  const months = [
-    { name: 'August 2026', y: 2026, m: 7, term: 'Odd Sem', tag: 'Term Start' },
-    { name: 'September 2026', y: 2026, m: 8, term: 'Odd Sem', tag: 'CIE-1 Week' },
-    { name: 'October 2026', y: 2026, m: 9, term: 'Odd Sem', tag: 'Attendance Audit' },
-    { name: 'November 2026', y: 2026, m: 10, term: 'Odd Sem', tag: 'CIE-2 / Review' },
-    { name: 'December 2026', y: 2026, m: 11, term: 'Odd Sem', tag: 'SEE Finals' },
-    { name: 'January 2027', y: 2027, m: 0, term: 'Even Sem', tag: 'Even Sem Start' },
-    { name: 'February 2027', y: 2027, m: 1, term: 'Even Sem', tag: 'Core Sprints' },
-    { name: 'March 2027', y: 2027, m: 2, term: 'Even Sem', tag: 'Tech Fest & CIE-1' },
-    { name: 'April 2027', y: 2027, m: 3, term: 'Even Sem', tag: 'CIE-2 / Pre-SEE' },
-    { name: 'May 2027', y: 2027, m: 4, term: 'Even Sem', tag: 'Even SEE Finals' },
-    { name: 'June 2027', y: 2027, m: 5, term: 'Vacation', tag: 'Internship Drive' },
-    { name: 'July 2027', y: 2027, m: 6, term: 'Vacation', tag: 'Summer Recess' },
-  ];
-
-  const allEvents = calState.data.events || [];
-
-  container.innerHTML = months.map(mon => {
-    const prefix = `${mon.y}-${String(mon.m + 1).padStart(2, '0')}`;
-    const evCount = allEvents.filter(e => e.date.startsWith(prefix)).length;
-    const examCount = allEvents.filter(e => e.date.startsWith(prefix) && e.type === 'exam').length;
-    const holCount = allEvents.filter(e => e.date.startsWith(prefix) && e.type === 'holiday').length;
-
-    let termColor = 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
-    if (mon.term === 'Even Sem') termColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
-    else if (mon.term === 'Vacation') termColor = 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
-
-    return `
-      <div class="cursor-pointer p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-indigo-400 hover:shadow-md transition" onclick="window.jumpToMatrixMonth(${mon.y}, ${mon.m})">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-black text-slate-800 dark:text-white">${mon.name}</span>
-          <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${termColor}">${mon.term}</span>
-        </div>
-        <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2">${mon.tag}</p>
-        <div class="grid grid-cols-3 gap-2 text-center text-[10px] pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-          <div><p class="font-extrabold text-slate-700 dark:text-slate-300">${evCount}</p><p class="text-slate-400">Events</p></div>
-          <div><p class="font-extrabold text-rose-600 dark:text-rose-400">${examCount}</p><p class="text-slate-400">Exams</p></div>
-          <div><p class="font-extrabold text-emerald-600 dark:text-emerald-400">${holCount}</p><p class="text-slate-400">Holidays</p></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-window.jumpToMatrixMonth = function (y, m) {
-  calState.currentMonth = new Date(y, m, 1);
-  window.switchCalendarView('month');
-  renderCalendarMonthGrid();
-};
-
-function renderCalendarAgenda() {
-  const container = $('calAgendaList');
-  const countEl = $('calAgendaCount');
-  if (!container || !calState.data) return;
-
-  let events = [...(calState.data.events || [])];
-  if (calState.activeCategory !== 'all') {
-    events = events.filter(e => e.type === calState.activeCategory);
-  }
-  if (calState.selectedTerm === 'odd') {
-    events = events.filter(e => e.sem === 'odd' || e.sem === 1 || e.sem === 3 || e.sem === 5 || e.sem === 7 || e.sem === 'all');
-  } else if (calState.selectedTerm === 'even') {
-    events = events.filter(e => e.sem === 'even' || e.sem === 2 || e.sem === 4 || e.sem === 6 || e.sem === 8 || e.sem === 'all');
-  }
-
-  if (countEl) countEl.textContent = `${events.length} Scheduled Events`;
-
-  if (!events.length) {
-    container.innerHTML = empty('No scheduled events found for this filter criteria.');
-    return;
-  }
-
-  container.innerHTML = events.map(e => {
-    let icon = 'fa-calendar';
-    let iconBg = 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400';
-    if (e.type === 'exam') {
-      icon = 'fa-file-pen';
-      iconBg = 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400';
-    } else if (e.type === 'assignment') {
-      icon = 'fa-diagram-project';
-      iconBg = 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400';
-    } else if (e.type === 'holiday') {
-      icon = 'fa-champagne-glasses';
-      iconBg = 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400';
-    } else if (e.type === 'placement') {
-      icon = 'fa-briefcase';
-      iconBg = 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400';
-    }
-
-    return `
-      <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-indigo-400 hover:shadow-sm transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-start gap-3.5">
-          <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0 text-base">
-            <i class="fas ${icon}"></i>
-          </div>
-          <div>
-            <div class="flex flex-wrap items-center gap-2 mb-1">
-              <span class="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">${esc(e.date)}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded ${iconBg}">${esc((e.type || 'Event').toUpperCase())}</span>
-              ${e.weight ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">${esc(e.weight)}</span>` : ''}
-            </div>
-            <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-1">${esc(e.title)}</h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${esc(e.details || e.desc || '')}</p>
-            <div class="flex items-center gap-4 text-[11px] text-slate-400 mt-2">
-              <span><i class="fas fa-clock mr-1"></i> ${esc(e.time || 'Schedule time')}</span>
-              <span><i class="fas fa-location-dot mr-1"></i> ${esc(e.location || 'Campus')}</span>
-            </div>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-          <button class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-xs font-bold transition flex items-center gap-1.5" onclick="window.openAcademicEventModal('${e.id}')">
-            <i class="fas fa-eye"></i> Details
-          </button>
-          <button class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5" onclick="window.addSingleEventToPlanner('${e.id}')">
-            <i class="fas fa-plus"></i> Planner
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
 window.selectCalendarDate = function (dateStr) {
@@ -1092,98 +949,99 @@ window.selectCalendarDate = function (dateStr) {
   const titleEl = $('calDayBriefingTitle');
   if (titleEl) titleEl.textContent = fdateFull(dateStr);
 
-  // Re-render month grid to reflect active circle highlight
+  // Re-render grid to reflect active selected day
   renderCalendarMonthGrid();
 
   if (!calState.data) return;
 
   const allEvents = calState.data.events || [];
-  const dayEvents = allEvents.filter(e => e.date === dateStr);
+  let dayEvents = allEvents.filter(e => e.date === dateStr);
+  if (calState.selectedTerm === 'odd') {
+    dayEvents = dayEvents.filter(e => e.sem === 'odd' || e.sem === 1 || e.sem === 3 || e.sem === 5 || e.sem === 7 || e.sem === 'all');
+  } else if (calState.selectedTerm === 'even') {
+    dayEvents = dayEvents.filter(e => e.sem === 'even' || e.sem === 2 || e.sem === 4 || e.sem === 6 || e.sem === 8 || e.sem === 'all');
+  }
+  const customTasks = getCustomCalendarTasks(dateStr);
+
+  const mappedEvents = dayEvents.map(e => {
+    let priority = 'medium';
+    if (e.type === 'exam' || e.type === 'placement') priority = 'high';
+    else if (e.type === 'holiday') priority = 'low';
+
+    let status = 'Scheduled';
+    if (e.type === 'holiday') status = 'Holiday';
+    else if (e.type === 'exam') status = 'Mandatory';
+
+    return {
+      id: e.id,
+      task: e.title,
+      priority: priority,
+      status: status,
+      deadline: fdate(e.date),
+      time: e.time || '09:00 AM',
+      isCustom: false,
+      details: e.details || e.desc
+    };
+  });
+
+  const mappedCustom = customTasks.map(t => ({
+    id: t.id,
+    task: t.title,
+    priority: t.priority || 'medium',
+    status: t.status || 'Scheduled',
+    deadline: fdate(t.date),
+    time: t.time || '10:00 AM',
+    isCustom: true
+  }));
+
+  const allDayTasks = [...mappedEvents, ...mappedCustom];
 
   const countEl = $('calDayEventsCount');
-  if (countEl) countEl.textContent = `${dayEvents.length} Event${dayEvents.length === 1 ? '' : 's'}`;
+  if (countEl) countEl.textContent = `${allDayTasks.length} Event${allDayTasks.length === 1 ? '' : 's'}`;
 
-  // Calculate day index relative to Aug 01, 2026
-  const startDate = new Date('2026-08-01T00:00:00');
-  const thisDate = new Date(dateStr + 'T00:00:00');
-  const diffDays = Math.max(0, Math.floor((thisDate - startDate) / (1000 * 60 * 60 * 24)));
-  const dayIndex = Math.min(90, Math.max(1, Math.round(diffDays * (5 / 7))));
-
-  const badgeEl = $('calDayInstructionalBadge');
-  if (badgeEl) {
-    if (dayEvents.some(e => e.type === 'holiday')) {
-      badgeEl.textContent = 'Holiday / Break';
-      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-    } else if (dayEvents.some(e => e.type === 'exam')) {
-      badgeEl.textContent = 'Examination Gate';
-      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30';
-    } else if (dayEvents.some(e => e.type === 'assignment')) {
-      badgeEl.textContent = 'Project Milestone';
-      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    } else {
-      badgeEl.textContent = `Day #${dayIndex} of 90`;
-      badgeEl.className = 'px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
-    }
-  }
-
-  // Determine stage context for this date
-  const mech = calState.data.mechanism;
-  const stageEl = $('calDayMechStage');
-  const notesEl = $('calDayMechNotes');
-  if (mech && stageEl && notesEl) {
-    const stage = mech.stages[Math.min(mech.stages.length - 1, Math.floor(dayIndex / 10))] || mech.stages[0];
-    stageEl.textContent = stage.title;
-    notesEl.textContent = stage.details;
-  }
-
-  // Populate events list for this day with colored circle badges
   const listEl = $('calDayEventsList');
   if (listEl) {
-    if (!dayEvents.length) {
+    if (!allDayTasks.length) {
+      // EXACT Empty State from Screenshot
       listEl.innerHTML = `
-        <div class="p-5 rounded-2xl border border-dashed border-slate-700/80 bg-slate-800/40 text-center">
-          <span class="w-10 h-10 rounded-full bg-slate-700/60 text-slate-300 font-bold flex items-center justify-center mx-auto mb-2.5 text-base">
-            <i class="fas fa-chalkboard"></i>
-          </span>
-          <p class="text-xs text-slate-300 font-bold">Standard Instructional Timetable Day</p>
-          <p class="text-[11px] text-slate-400 mt-1">Regular lectures and laboratory sessions are in progress as per timetable.</p>
+        <div class="flex flex-col items-center justify-center py-16 text-center select-none">
+          <div class="w-14 h-14 rounded-2xl bg-slate-100/90 text-slate-400 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
+            <i class="fas fa-clipboard-list text-slate-300"></i>
+          </div>
+          <p class="text-slate-400 text-xs font-normal">There are no tasks for the chosen day yet.</p>
         </div>
       `;
     } else {
-      const circleMap = {
-        exam: { bg: 'bg-[#E10600]', ring: 'ring-red-400/40', shadow: 'shadow-red-500/40', icon: 'fa-file-pen', label: 'EXAMINATION' },
-        holiday: { bg: 'bg-[#10b981]', ring: 'ring-emerald-400/40', shadow: 'shadow-emerald-500/40', icon: 'fa-umbrella-beach', label: 'GAZETTED HOLIDAY' },
-        assignment: { bg: 'bg-[#f59e0b]', ring: 'ring-amber-400/40', shadow: 'shadow-amber-500/40', icon: 'fa-list-check', label: 'PROJECT REVIEW' },
-        placement: { bg: 'bg-[#8b5cf6]', ring: 'ring-purple-400/40', shadow: 'shadow-purple-500/40', icon: 'fa-briefcase', label: 'PLACEMENT' },
-        meeting: { bg: 'bg-[#8b5cf6]', ring: 'ring-purple-400/40', shadow: 'shadow-purple-500/40', icon: 'fa-trophy', label: 'CAMPUS EVENT' },
-        class: { bg: 'bg-[#6366f1]', ring: 'ring-indigo-400/40', shadow: 'shadow-indigo-500/40', icon: 'fa-book-open', label: 'ACADEMIC CLASS' }
-      };
-
-      listEl.innerHTML = dayEvents.map(e => {
-        const c = circleMap[e.type] || circleMap.class;
-        return `
-          <div class="p-3.5 rounded-2xl border border-slate-700/80 bg-slate-800/70 shadow-sm flex items-start gap-3 transition hover:border-slate-500">
-            <span class="w-8 h-8 rounded-full ${c.bg} text-white font-black flex items-center justify-center text-xs shrink-0 shadow-md ${c.shadow} ring-2 ${c.ring} mt-0.5">
-              <i class="fas ${c.icon}"></i>
-            </span>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-1.5 mb-1">
-                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${c.bg}/20 text-slate-200 border border-slate-600">${c.label}</span>
-                <span class="text-[10px] font-bold text-slate-400">${esc(e.time || '09:00 AM')}</span>
+      // Clean Table Rows matching screenshot headers: N° | Task | Priority | Status | Deadline | Time | Action
+      listEl.innerHTML = `
+        <div class="divide-y divide-slate-100">
+          ${allDayTasks.map((t, idx) => `
+            <div class="grid grid-cols-12 gap-2 py-3 px-2 text-xs items-center hover:bg-slate-50 rounded-xl transition">
+              <div class="col-span-1 font-bold text-slate-400">${idx + 1}</div>
+              <div class="col-span-4 font-semibold text-slate-800 truncate" title="${esc(t.task)}">${esc(t.task)}</div>
+              <div class="col-span-2 text-center">
+                ${renderPriorityBadge(t.priority)}
               </div>
-              <h5 class="text-xs font-black text-white mb-1 leading-snug">${esc(e.title)}</h5>
-              <p class="text-[11px] text-slate-300 leading-relaxed mb-2">${esc(e.details || e.desc || '')}</p>
-              <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 border-t border-slate-700/60 pt-2">
-                <span><i class="fas fa-location-dot mr-1 text-slate-400"></i> ${esc(e.location || 'Campus')}</span>
-                ${e.weight ? `<span class="px-1.5 py-0.5 rounded bg-slate-700/80 text-slate-200 font-bold">${esc(e.weight)}</span>` : ''}
+              <div class="col-span-2 text-center">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">${esc(t.status)}</span>
+              </div>
+              <div class="col-span-1 text-center text-slate-500 text-[11px] truncate">${esc(t.deadline)}</div>
+              <div class="col-span-1 text-center text-slate-500 text-[11px] truncate">${esc(t.time)}</div>
+              <div class="col-span-1 text-right flex items-center justify-end gap-1">
+                ${t.isCustom ? `
+                  <button class="w-6 h-6 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs transition" title="Delete Task" onclick="window.deleteCalendarTask('${t.id}')">
+                    <i class="fas fa-trash-alt text-[10px]"></i>
+                  </button>
+                ` : `
+                  <button class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition" title="View details" onclick="window.openAcademicEventModal('${t.id}')">
+                    <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                  </button>
+                `}
               </div>
             </div>
-            <button class="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center text-xs shrink-0 transition" title="View details" onclick="window.openAcademicEventModal('${e.id}')">
-              <i class="fas fa-arrow-up-right-from-square"></i>
-            </button>
-          </div>
-        `;
-      }).join('');
+          `).join('')}
+        </div>
+      `;
     }
   }
 };
@@ -1193,6 +1051,52 @@ window.jumpToSelectedMonth = function (val) {
   const [yStr, mStr] = val.split('-');
   calState.currentMonth = new Date(Number(yStr), Number(mStr) - 1, 1);
   renderCalendarMonthGrid();
+};
+
+window.openAddCalendarTaskModal = function() {
+  const modal = $('addCalendarTaskModal');
+  if (!modal) return;
+  const dateTitle = $('addCalModalDateTitle');
+  if (dateTitle) dateTitle.textContent = `Add Task for ${fdateFull(calState.selectedDate)}`;
+  const titleInput = $('addCalTaskTitle');
+  if (titleInput) { titleInput.value = ''; titleInput.focus(); }
+  modal.classList.remove('hidden');
+};
+
+window.closeAddCalendarTaskModal = function() {
+  const modal = $('addCalendarTaskModal');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.saveCalendarCustomTask = function(e) {
+  if (e) e.preventDefault();
+  const title = ($('addCalTaskTitle')?.value || '').trim();
+  if (!title) return;
+  const priority = $('addCalTaskPriority')?.value || 'medium';
+  const status = $('addCalTaskStatus')?.value || 'Scheduled';
+  const time = ($('addCalTaskTime')?.value || '').trim() || '10:00 AM';
+
+  const newTask = {
+    id: 'ctask_' + Date.now(),
+    date: calState.selectedDate,
+    title: title,
+    priority: priority,
+    status: status,
+    time: time
+  };
+
+  saveCustomCalendarTask(newTask);
+  window.closeAddCalendarTaskModal();
+  selectCalendarDate(calState.selectedDate);
+  renderCalendarMonthGrid();
+  if (typeof toast === 'function') toast('Task scheduled successfully!', 'success');
+};
+
+window.deleteCalendarTask = function(id) {
+  removeCustomCalendarTask(id);
+  selectCalendarDate(calState.selectedDate);
+  renderCalendarMonthGrid();
+  if (typeof toast === 'function') toast('Task removed.', 'info');
 };
 function renderUpcomingDeadlines() {
   const container = $('calUpcomingDeadlinesList');

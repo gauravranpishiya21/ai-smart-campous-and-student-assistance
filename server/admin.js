@@ -570,5 +570,54 @@ router.get('/audit-log', h(async (req, res) => {
   res.json(audit);
 }));
 
+
+// ---------- 11. Study Materials & Academic Resources Management ----------
+router.get('/materials', h(async (req, res) => {
+  const { dept, year, semester } = req.query;
+  let query = 'SELECT sm.*, s.name as subject_name, s.code as subject_code FROM study_materials sm LEFT JOIN subjects s ON sm.subject_id = s.id';
+  const params = [];
+  const conditions = [];
+
+  if (dept) { conditions.push('sm.dept = ?'); params.push(dept); }
+  if (year) { conditions.push('sm.year = ?'); params.push(parseInt(year, 10)); }
+  if (semester) { conditions.push('sm.semester = ?'); params.push(parseInt(semester, 10)); }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY sm.id DESC';
+
+  const items = db.prepare(query).all(...params);
+  res.json({ items });
+}));
+
+router.post('/materials', h(async (req, res) => {
+  const { title, description, dept, year, semester, subject_id, material_type, file_name } = req.body || {};
+  if (!title || !dept || !year || !semester) {
+    return bad(res, 'Title, department, academic year, and semester are required.');
+  }
+
+  const sYear = parseInt(year, 10);
+  const sSem = parseInt(semester, 10);
+  const sSubId = subject_id ? parseInt(subject_id, 10) : null;
+  const fileName = (file_name || title.replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf');
+
+  const result = db.prepare(`
+    INSERT INTO study_materials(title, description, dept, year, semester, subject_id, material_type, file_name, uploaded_by, status)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'Published')
+  `).run(title, description || '', dept, sYear, sSem, sSubId, material_type || 'Notes', fileName, req.user.id);
+
+  res.json({
+    message: 'Study material uploaded and published successfully.',
+    id: Number(result.lastInsertRowid)
+  });
+}));
+
+router.delete('/materials/:id', h(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.prepare('DELETE FROM study_materials WHERE id=?').run(id);
+  res.json({ message: 'Study material deleted successfully.' });
+}));
+
 module.exports = router;
 

@@ -46,13 +46,35 @@ function runDomValidationTests() {
   assert.strictEqual(adminDuplicates.length, 0, `Found duplicate IDs in admin.html: ${adminDuplicates.join(', ')}`);
   console.log(`  ✓ admin.html DOM ID integrity: ${adminIds.length} unique IDs, 0 duplicates`);
 
-  // Test 4: Student Portal - All sections exist and are reachable via navigation
+  // Test 4: Student Portal - 25 Canonical Sections (10 removed, 1 profile added, 100% reachable)
   const studentSections = [...indexHtml.matchAll(/<section[^>]*id=["']([^"']+)["']/g)].map(x => x[1]);
   const studentNavTargets = [...indexHtml.matchAll(/data-sec=["']([^"']+)["']/g)].map(x => x[1]);
   const unreachableStudentSections = studentSections.filter(s => !studentNavTargets.includes(s));
   assert.strictEqual(unreachableStudentSections.length, 0, `Unreachable student sections found: ${unreachableStudentSections.join(', ')}`);
-  assert.strictEqual(studentSections.length >= 34, true, `Expected at least 34 student sections, got ${studentSections.length}`);
-  console.log(`  ✓ Student Portal navigation: all ${studentSections.length} sections are 100% reachable with direct nav links`);
+  assert.strictEqual(studentSections.length, 25, `Expected exactly 25 student sections, got ${studentSections.length}`);
+
+  // Verify explicit removal of the 10 deprecated sections
+  const removedSections = [
+    'exam-schedule', 'certificates', 'health', 'finance', 'campus',
+    'resume', 'cgpa', 'forum', 'social-feed', 'streaming'
+  ];
+  removedSections.forEach(sec => {
+    assert.strictEqual(studentSections.includes(sec), false, `Deprecated section '${sec}' must be removed from student DOM`);
+    assert.strictEqual(studentNavTargets.includes(sec), false, `Deprecated section '${sec}' must be removed from navigation`);
+  });
+
+  // Verify dedicated profile page
+  assert.strictEqual(studentSections.includes('profile'), true, 'Student profile section must exist');
+
+  // Verify attendance calendar widget
+  assert.strictEqual(indexHtml.includes('id="attendanceCalendarCard"'), true, 'Attendance calendar card must exist in attendance-hub');
+
+  // Verify top header cleanup (zero blueprint or role switcher controls)
+  assert.strictEqual(indexHtml.includes('id="roleSwitcherBtn"'), false, 'Role switcher persona selector must be removed from header');
+  assert.strictEqual(indexHtml.includes('openProjectBlueprintModal'), false, 'Project blueprint button must be removed from header');
+  assert.strictEqual(indexHtml.includes('openKernelCommander'), false, 'AI Kernel Commander button must be removed from header');
+
+  console.log(`  ✓ Student Portal navigation: all ${studentSections.length} canonical sections are 100% reachable; 10 deprecated sections removed`);
 
   // Test 5: Admin Portal - All sections exist and are reachable via navigation
   const adminSections = [...adminHtml.matchAll(/<section[^>]*id=["']([^"']+)["']/g)].map(x => x[1]);

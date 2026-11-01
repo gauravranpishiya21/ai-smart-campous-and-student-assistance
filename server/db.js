@@ -13,19 +13,21 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY AUTOINCREMENT, roll_no TEXT UNIQUE, name TEXT, email TEXT UNIQUE,
   password_hash TEXT, dept TEXT DEFAULT 'Computer Science & Engineering', year INTEGER DEFAULT 2,
-  semester INTEGER DEFAULT 4, xp INTEGER DEFAULT 0, role TEXT DEFAULT 'student', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+  semester INTEGER DEFAULT 4, xp INTEGER DEFAULT 0, role TEXT DEFAULT 'student', phone TEXT DEFAULT '',
+  bio TEXT DEFAULT '', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS subjects(
   id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, credits INTEGER, sem INTEGER,
   category TEXT, modules TEXT, faculty TEXT, prereq TEXT DEFAULT 'None');
 CREATE TABLE IF NOT EXISTS attendance(
   user_id INTEGER, subject_id INTEGER, attended INTEGER, total INTEGER, PRIMARY KEY(user_id, subject_id));
 CREATE TABLE IF NOT EXISTS attendance_log(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, date TEXT, status TEXT, UNIQUE(user_id, date));
+  id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, date TEXT, status TEXT, method TEXT DEFAULT 'Standard', UNIQUE(user_id, date));
 CREATE TABLE IF NOT EXISTS marks(
   user_id INTEGER, subject_id INTEGER, internal REAL, endsem REAL, assign_done INTEGER, assign_total INTEGER,
   PRIMARY KEY(user_id, subject_id));
 CREATE TABLE IF NOT EXISTS notices(
   id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, body TEXT, summary TEXT, category TEXT, priority TEXT,
+  target_year INTEGER DEFAULT NULL, target_dept TEXT DEFAULT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS notifications(
   id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, message TEXT, type TEXT, dedupe TEXT,
@@ -35,7 +37,55 @@ CREATE TABLE IF NOT EXISTS records(
 CREATE INDEX IF NOT EXISTS idx_rec ON records(kind, user_id);
 CREATE TABLE IF NOT EXISTS automation_log(
   id INTEGER PRIMARY KEY AUTOINCREMENT, job TEXT, detail TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS study_materials(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT,
+  dept TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  semester INTEGER NOT NULL,
+  subject_id INTEGER,
+  material_type TEXT NOT NULL DEFAULT 'Notes',
+  file_url TEXT,
+  file_name TEXT,
+  file_size INTEGER DEFAULT 1048576,
+  uploaded_by INTEGER,
+  status TEXT DEFAULT 'Published',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_materials ON study_materials(dept, year, semester);
+
+CREATE TABLE IF NOT EXISTS planner_tasks(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  subject TEXT,
+  date TEXT,
+  time TEXT,
+  priority TEXT DEFAULT 'Medium',
+  completed INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_planner_tasks ON planner_tasks(user_id, date);
+
+CREATE TABLE IF NOT EXISTS vehicles(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER UNIQUE,
+  vehicle_type TEXT DEFAULT 'Two-Wheeler',
+  reg_number TEXT NOT NULL,
+  model TEXT,
+  slot_assigned TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
+
+// Safe non-destructive schema migrations for existing database instances
+try { db.exec("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE notices ADD COLUMN target_year INTEGER DEFAULT NULL"); } catch {}
+try { db.exec("ALTER TABLE notices ADD COLUMN target_dept TEXT DEFAULT NULL"); } catch {}
+try { db.exec("ALTER TABLE attendance_log ADD COLUMN method TEXT DEFAULT 'Standard'"); } catch {}
 
 const J = (v) => JSON.stringify(v);
 const unpack = (r) => (r ? { id: r.id, user_id: r.user_id, created_at: r.created_at, ...JSON.parse(r.data) } : null);
@@ -59,7 +109,7 @@ const rec = {
     return this.get(id);
   },
   remove(id) { db.prepare('DELETE FROM records WHERE id=?').run(id); },
-  // single-document-per-user helper (resume, health, planner, wallet ...)
+  // single-document-per-user helper (planner, settings ...)
   getDoc(kind, userId, dflt = {}) { const r = this.list(kind, userId, { limit: 1 })[0]; return r ? r : { ...dflt }; },
   setDoc(kind, userId, patch) {
     const r = this.list(kind, userId, { limit: 1 })[0];

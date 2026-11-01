@@ -370,7 +370,7 @@ function drawPlannerTasks() {
     return `
       <div class="task-table-row">
         <span class="font-bold text-gray-500">${idx + 1}</span>
-        <span class="font-bold text-gray-800 ${isDone ? 'line-through text-gray-400' : ''}">${esc(t.name)}</span>
+        <span class="planner-task-title font-bold ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}">${esc(t.name)}</span>
         <span>${priBadge}</span>
         <span>${statusBtn}</span>
         <span class="text-xs text-gray-500">${plannerPretty(t.deadline || t.date)}</span>
@@ -544,7 +544,7 @@ L.parking = async () => {
   sel('parkingSlotsGrid').innerHTML = `<div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">${d.slots.map((s) => `<div class="rounded-xl p-3 text-center text-xs font-black ${s.taken ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">${esc(s.slot)}<br><span class="font-medium">${esc(s.type)}</span><br>${s.taken ? 'Taken' : 'Free'}</div>`).join('')}</div>`
     + (d.vehicles.length ? `<h4 class="font-bold text-sm mb-2">My vehicles</h4>` + d.vehicles.map((v) => `<p class="text-sm">${esc(v.number)} · ${esc(v.type)}</p>`).join('') : '');
 };
-window.registerVehicle = () => act(async () => { const r = await api('/parking/register', { body: { number: val('vehicleNumber'), type: val('vehicleType') } }); closeModal('registerVehicleModal'); await L.parking(); return r; });
+window.registerVehicle = () => act(async () => { const r = await api('/parking/vehicle', { body: { plate_number: val('vehicleNumber'), vehicle_type: val('vehicleType') } }); closeModal('registerVehicleModal'); if (window.loadParkingOverview) await window.loadParkingOverview(); return { message: 'Vehicle registered successfully.' }; });
 L.streaming = async () => {
   const e = await api('/live');
   sel('liveEventsGrid').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${e.map((x) => card(`${pill(x.status, x.status === 'Live' ? 'red' : 'blue')}<h4 class="font-bold mt-2">${esc(x.title)}</h4><p class="text-xs text-gray-400">${fdate(x.date)}</p>`)).join('')}</div>`;
@@ -611,7 +611,7 @@ window.postDiscussionFromDetail = () => act(async () => { await api(`/projects/$
 const streams = { engineering: ['Computer Science & Engineering', 'Electronics & Communication', 'Mechanical Engineering', 'Civil Engineering'], medical: ['MBBS', 'Nursing', 'Pharmacy'], commerce: ['B.Com', 'BBA', 'MBA'] };
 let learnState = { level: 0 };
 const learnShow = (lv) => { learnState.level = lv; ['deptContainer', 'subjectContainer', 'materialContainer'].forEach((id, i) => sel(id).classList.toggle('hidden', i !== lv - 1)); sel('streamGrid').classList.toggle('hidden', lv > 0); sel('learningBackBtn').classList.toggle('hidden', lv === 0); };
-L.learning = () => learnShow(0);
+L.learning = () => { if (window.loadStudyMaterials) window.loadStudyMaterials(); };
 window.filterDepartments = (s) => { sel('currentStreamTitle').textContent = s[0].toUpperCase() + s.slice(1); sel('deptGrid').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${streams[s].map((d) => card(`<b>${esc(d)}</b>`, 'cursor-pointer hover:border-indigo-400" onclick="loadDeptSubjects(\'' + esc(d) + '\')')).join('')}</div>`; learnShow(1); };
 window.loadDeptSubjects = async (dept) => {
   sel('currentDeptTitle').textContent = dept; const s = await api('/syllabus');

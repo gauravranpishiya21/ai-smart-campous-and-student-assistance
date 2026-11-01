@@ -20,25 +20,25 @@ const CATALOG = {
 
 // 5 Official Faculty Members
 const FACULTY = [
-  { name: 'Dr. Rajesh Sharma', roll_no: 'FAC001', dept: 'Computer Science & Engineering', role: 'Professor & HOD', email: 'rajesh.sharma@smartcampus.edu', expertise: 'Operating Systems & Distributed Systems' },
-  { name: 'Prof. Ananya Iyer', roll_no: 'FAC002', dept: 'Information Technology', role: 'Associate Professor', email: 'ananya.iyer@smartcampus.edu', expertise: 'Cloud Computing & Web Technologies' },
-  { name: 'Dr. Vikram Rao', roll_no: 'FAC003', dept: 'Computer Science & Engineering', role: 'Professor', email: 'vikram.rao@smartcampus.edu', expertise: 'Artificial Intelligence & Machine Learning' },
-  { name: 'Prof. Meera Nair', roll_no: 'FAC004', dept: 'Information Technology', role: 'Associate Professor', email: 'meera.nair@smartcampus.edu', expertise: 'Database Management & Cyber Security' },
-  { name: 'Dr. Suresh Kulkarni', roll_no: 'FAC005', dept: 'Computer Science & Engineering', role: 'Professor', email: 'suresh.kulkarni@smartcampus.edu', expertise: 'Algorithms & Discrete Mathematics' }
+  { name: 'Dr. Rajesh Sharma', roll_no: 'FAC001', dept: 'Computer Science & Engineering', role: 'Professor & HOD', email: 'rajesh.sharma@smartcampus.edu', cabin: 'Block A, Room 304', officeHours: 'Mon-Wed 14:00 - 16:00', expertise: 'Operating Systems & Distributed Systems' },
+  { name: 'Prof. Ananya Iyer', roll_no: 'FAC002', dept: 'Information Technology', role: 'Associate Professor', email: 'ananya.iyer@smartcampus.edu', cabin: 'Block B, Room 212', officeHours: 'Tue-Thu 11:00 - 13:00', expertise: 'Cloud Computing & Web Technologies' },
+  { name: 'Dr. Vikram Rao', roll_no: 'FAC003', dept: 'Computer Science & Engineering', role: 'Professor', email: 'vikram.rao@smartcampus.edu', cabin: 'Block A, Room 408', officeHours: 'Mon-Fri 15:00 - 17:00', expertise: 'Artificial Intelligence & Machine Learning' },
+  { name: 'Prof. Meera Nair', roll_no: 'FAC004', dept: 'Information Technology', role: 'Associate Professor', email: 'meera.nair@smartcampus.edu', cabin: 'Block B, Room 105', officeHours: 'Wed-Fri 10:00 - 12:00', expertise: 'Database Management & Cyber Security' },
+  { name: 'Dr. Suresh Kulkarni', roll_no: 'FAC005', dept: 'Computer Science & Engineering', role: 'Professor', email: 'suresh.kulkarni@smartcampus.edu', cabin: 'Block A, Room 201', officeHours: 'Mon-Thu 13:00 - 15:00', expertise: 'Algorithms & Discrete Mathematics' }
 ];
 
-// 10 CSE Students
+// 10 CSE Students - Gaurav is the primary sample demo student
 const CSE_STUDENTS = [
-  ['2024CS0042', 'Gaurav Sharma', 'gaurav.cs@smartcampus.edu', 1260, 0.82],
-  ['2024CS0011', 'Pooja Verma', 'pooja.cs@smartcampus.edu', 1480, 0.88],
-  ['2024CS0023', 'Rahul Nair', 'rahul.cs@smartcampus.edu', 1190, 0.80],
-  ['2024CS0031', 'Aarav Mehta', 'aarav.cs@smartcampus.edu', 960, 0.77],
-  ['2024CS0056', 'Sneha Kulkarni', 'sneha.cs@smartcampus.edu', 1340, 0.85],
-  ['2024CS0068', 'Ishaan Gupta', 'ishaan.cs@smartcampus.edu', 720, 0.64], // Low attendance deficit
-  ['2024CS0077', 'Neha Reddy', 'neha.cs@smartcampus.edu', 880, 0.76],
-  ['2024CS0084', 'Aditya Rao', 'aditya.cs@smartcampus.edu', 1050, 0.81],
-  ['2024CS0092', 'Ananya Deshmukh', 'ananya.cs@smartcampus.edu', 1210, 0.84],
-  ['2024CS0098', 'Varun Sen', 'varun.cs@smartcampus.edu', 840, 0.68]  // Low attendance deficit
+  ['2024CS0042', 'Gaurav', 'gaurav.cs@smartcampus.edu', 1260, 0.82, '+91 98765 43210', 'B.Tech CSE Student focused on distributed systems and cloud engineering.'],
+  ['2024CS0011', 'Pooja Verma', 'pooja.cs@smartcampus.edu', 1480, 0.88, '', ''],
+  ['2024CS0023', 'Rahul Nair', 'rahul.cs@smartcampus.edu', 1190, 0.80, '', ''],
+  ['2024CS0031', 'Aarav Mehta', 'aarav.cs@smartcampus.edu', 960, 0.77, '', ''],
+  ['2024CS0056', 'Sneha Kulkarni', 'sneha.cs@smartcampus.edu', 1340, 0.85, '', ''],
+  ['2024CS0068', 'Ishaan Gupta', 'ishaan.cs@smartcampus.edu', 720, 0.64, '', ''],
+  ['2024CS0077', 'Neha Reddy', 'neha.cs@smartcampus.edu', 880, 0.76, '', ''],
+  ['2024CS0084', 'Aditya Rao', 'aditya.cs@smartcampus.edu', 1050, 0.81, '', ''],
+  ['2024CS0092', 'Ananya Deshmukh', 'ananya.cs@smartcampus.edu', 1210, 0.84, '', ''],
+  ['2024CS0098', 'Varun Sen', 'varun.cs@smartcampus.edu', 840, 0.68, '', '']
 ];
 
 // 10 IT Students
@@ -47,27 +47,27 @@ const IT_STUDENTS = [
   ['2024IT0002', 'Riya Mukherjee', 'riya.it@smartcampus.edu', 1420, 0.89],
   ['2024IT0003', 'Karthik Venkat', 'karthik.it@smartcampus.edu', 1150, 0.79],
   ['2024IT0004', 'Divya Patel', 'divya.it@smartcampus.edu', 1280, 0.83],
-  ['2024IT0005', 'Rohan Joshi', 'rohan.it@smartcampus.edu', 690, 0.62], // Low attendance deficit
+  ['2024IT0005', 'Rohan Joshi', 'rohan.it@smartcampus.edu', 690, 0.62],
   ['2024IT0006', 'Tanvi Bansal', 'tanvi.it@smartcampus.edu', 1310, 0.85],
   ['2024IT0007', 'Siddharth Roy', 'siddharth.it@smartcampus.edu', 990, 0.78],
   ['2024IT0008', 'Kavya Menon', 'kavya.it@smartcampus.edu', 1440, 0.90],
-  ['2024IT0009', 'Manish Chawla', 'manish.it@smartcampus.edu', 740, 0.66], // Low attendance deficit
+  ['2024IT0009', 'Manish Chawla', 'manish.it@smartcampus.edu', 740, 0.66],
   ['2024IT0010', 'Shreya Pillai', 'shreya.it@smartcampus.edu', 1180, 0.81]
 ];
 
 function reset() {
-  for (const t of ['users', 'subjects', 'attendance', 'attendance_log', 'marks', 'notices', 'notifications', 'records', 'automation_log']) {
-    db.exec(`DELETE FROM ${t}`);
+  for (const t of ['users', 'subjects', 'attendance', 'attendance_log', 'marks', 'notices', 'notifications', 'records', 'automation_log', 'study_materials', 'planner_tasks', 'vehicles']) {
+    try { db.exec(`DELETE FROM ${t}`); } catch {}
   }
-  db.exec("DELETE FROM sqlite_sequence");
+  try { db.exec("DELETE FROM sqlite_sequence"); } catch {}
 }
 
 function seed() {
   const hash = bcrypt.hashSync('student123', 8);
 
   const mkUser = (roll, name, email, extra = {}) => Number(db.prepare(`
-    INSERT INTO users(roll_no, name, email, password_hash, xp, role, dept, year, semester)
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users(roll_no, name, email, password_hash, xp, role, dept, year, semester, phone, bio)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     roll,
     name,
@@ -77,22 +77,24 @@ function seed() {
     extra.role ?? 'student',
     extra.dept ?? 'Computer Science & Engineering',
     extra.year ?? 2,
-    extra.semester ?? 4
+    extra.semester ?? 4,
+    extra.phone ?? '',
+    extra.bio ?? ''
   ).lastInsertRowid);
 
   // 1. Seed 10 CSE Students
-  const cseUserIds = CSE_STUDENTS.map(([roll, name, email, xp]) => ({
-    id: mkUser(roll, name, email, { xp, dept: 'Computer Science & Engineering' }),
+  const cseUserIds = CSE_STUDENTS.map(([roll, name, email, xp, pct, phone, bio]) => ({
+    id: mkUser(roll, name, email, { xp, dept: 'Computer Science & Engineering', year: 2, semester: 4, phone, bio }),
     roll, name, email
   }));
 
   // 2. Seed 10 IT Students
   const itUserIds = IT_STUDENTS.map(([roll, name, email, xp]) => ({
-    id: mkUser(roll, name, email, { xp, dept: 'Information Technology' }),
+    id: mkUser(roll, name, email, { xp, dept: 'Information Technology', year: 2, semester: 4 }),
     roll, name, email
   }));
 
-  // Primary user for student portal demo is Gaurav Sharma (first CSE student)
+  // Primary user for student portal demo is Gaurav (first CSE student)
   const me = cseUserIds[0].id;
 
   // 3. Seed 5 Faculty Members (both in users table & records table)
@@ -103,171 +105,177 @@ function seed() {
       dept: f.dept,
       role: f.role,
       email: f.email,
-      expertise: f.expertise
+      cabin: f.cabin,
+      officeHours: f.officeHours,
+      expertise: f.expertise,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
     });
   });
 
-  // 4. Seed Admin Account
-  const admin = mkUser('ADMIN001', 'Campus Admin', 'admin@smartcampus.edu', { role: 'admin', dept: 'Institutional Administration' });
+  // 4. Seed Admin
+  const admin = mkUser('ADMIN001', 'Institutional Admin', 'admin@smartcampus.edu', { role: 'admin', dept: 'Administration', xp: 5000 });
 
-  // 4b. Seed Parent Account (linked to student 2024CS0042)
-  mkUser('PARENT001', 'Sunita Sharma (Parent)', 'parent.sharma@family.org', { role: 'parent', dept: 'Parent & Guardian Council' });
-
-  // 4c. Seed Security Staff Account
-  mkUser('SEC001', 'Officer Vikram Singh', 'security.post1@smartcampus.edu', { role: 'security', dept: 'Campus Safety & Physical Security' });
-
-  // 5. Seed Catalog Subjects
-  const subIds = {};
-  const ins = db.prepare('INSERT INTO subjects(code, name, credits, sem, category, modules, faculty, prereq) VALUES(?, ?, ?, ?, ?, ?, ?, ?)');
-  let fi = 0;
+  // 5. Seed Catalog of Subjects for Semesters 1 through 8
+  const subjectMap = {};
   for (const [sem, list] of Object.entries(CATALOG)) {
-    list.forEach((line, i) => {
-      const [code, name, cr, cat, mods] = line.split('|');
-      const id = Number(ins.run(
-        code,
-        name,
-        Number(cr),
-        Number(sem),
-        cat,
-        mods,
-        pick(FACULTY, fi++).name,
-        i === 0 || sem == 1 ? 'None' : pick(CATALOG[sem - 1], i).split('|')[1]
-      ).lastInsertRowid);
-      (subIds[sem] ||= []).push(id);
+    const sInt = Number(sem);
+    list.forEach((entry, idx) => {
+      const [code, name, credits, category, modules] = entry.split('|');
+      const fac = FACULTY[idx % FACULTY.length].name;
+      const r = db.prepare('INSERT INTO subjects(code, name, credits, sem, category, modules, faculty) VALUES(?, ?, ?, ?, ?, ?, ?)')
+        .run(code, name, Number(credits), sInt, category, modules, fac);
+      const subId = Number(r.lastInsertRowid);
+      subjectMap[code] = subId;
     });
   }
 
-  // 6. Seed Marks + Attendance for all 20 Students
-  const allStudents = [
-    ...CSE_STUDENTS.map((item, idx) => ({ uid: cseUserIds[idx].id, targetAtt: item[4], index: idx, dept: 'CSE' })),
-    ...IT_STUDENTS.map((item, idx) => ({ uid: itUserIds[idx].id, targetAtt: item[4], index: idx + 10, dept: 'IT' }))
+  // 6. Seed Attendance and Marks for all students (focused on Semester 4 subjects)
+  const sem4Subjects = db.prepare('SELECT * FROM subjects WHERE sem=4').all();
+  const allStudents = [...cseUserIds, ...itUserIds];
+
+  allStudents.forEach((student, sIdx) => {
+    const isDeficit = (student.roll === '2024CS0068' || student.roll === '2024CS0098' || student.roll === '2024IT0005' || student.roll === '2024IT0009');
+    const baseRate = isDeficit ? 0.65 : (student.roll === '2024CS0042' ? 0.82 : (0.78 + (sIdx % 10) * 0.015));
+
+    sem4Subjects.forEach((sub, subIdx) => {
+      const total = 40 + (subIdx * 2);
+      const attended = Math.round(total * (baseRate + (subIdx % 3 === 0 ? 0.03 : -0.02)));
+      db.prepare('INSERT INTO attendance(user_id, subject_id, attended, total) VALUES(?, ?, ?, ?)')
+        .run(student.id, sub.id, attended, total);
+
+      // Marks
+      const internal = 22 + (sIdx % 6) + (subIdx % 3);
+      const endsem = 52 + (sIdx % 15) + (subIdx % 5);
+      db.prepare('INSERT INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, ?, ?, ?)')
+        .run(student.id, sub.id, internal, endsem, 4, 5);
+    });
+  });
+
+  // 7. Seed Daily Attendance Log across Current and Previous Month for Demo Student Gaurav
+  const now = new Date();
+  for (let i = -45; i <= 0; i++) {
+    const dt = new Date(now);
+    dt.setDate(dt.getDate() + i);
+    const dayOfWeek = dt.getDay();
+    if (dayOfWeek === 0) continue; // Sunday no regular class
+    const dateStr = dt.toISOString().slice(0, 10);
+    // 82% present rate
+    const isPresent = (Math.abs(i) % 5 !== 0);
+    const status = isPresent ? 'present' : 'absent';
+    const method = isPresent ? (dayOfWeek === 1 || dayOfWeek === 3 ? 'Biometric Face Recognition' : (dayOfWeek === 2 || dayOfWeek === 4 ? 'Rolling Dynamic QR' : 'RFID Smart Card')) : 'None';
+    try {
+      db.prepare('INSERT INTO attendance_log(user_id, date, status, method) VALUES(?, ?, ?, ?)').run(me, dateStr, status, method);
+    } catch {}
+  }
+
+  // 8. Seed Study Materials across all 4 Academic Years (1-4)
+  const sampleMaterials = [
+    // Year 1 (Sem 1 & 2)
+    { title: 'Engineering Mathematics I - Calculus Lecture Notes', description: 'Comprehensive handwritten lecture notes on eigenvalues and multivariable calculus.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'MA101', type: 'Lecture Notes', file_name: 'MA101_Calculus_Notes.pdf' },
+    { title: 'Programming in C - Pointers & File I/O Handbook', description: 'Module-by-module reference guide with code snippets for memory pointers and struct files.', dept: 'Computer Science & Engineering', year: 1, semester: 1, subject: 'CS101', type: 'Study Guide', file_name: 'CS101_C_Programming_Guide.pdf' },
+    { title: 'Data Structures - Balanced Trees & Graph Algorithms', description: 'Detailed visual explanations of AVL trees, Dijkstra algorithm and BFS/DFS.', dept: 'Computer Science & Engineering', year: 1, semester: 2, subject: 'CS102', type: 'Ebook', file_name: 'CS102_Data_Structures.pdf' },
+
+    // Year 2 (Sem 3 & 4) - Gaurav is in Sem 4!
+    { title: 'Operating Systems - Process Scheduling & Concurrency', description: 'Prof. Rajesh Sharma comprehensive slides on CPU scheduling, mutexes, semaphores and deadlocks.', dept: 'Computer Science & Engineering', year: 2, semester: 4, subject: 'CS401', type: 'Lecture Slides', file_name: 'CS401_OS_Concurrency.pdf' },
+    { title: 'Design & Analysis of Algorithms - Dynamic Programming Formula Sheet', description: 'Quick revision formulas and recurrence relations for DP and Greedy design techniques.', dept: 'Computer Science & Engineering', year: 2, semester: 4, subject: 'CS402', type: 'Formula Sheet', file_name: 'CS402_Algorithms_DP_CheatSheet.pdf' },
+    { title: 'Computer Networks - TCP/IP & Socket Programming Reference', description: 'Lab manual for TCP/UDP socket development in C/Python with Wireshark packet traces.', dept: 'Computer Science & Engineering', year: 2, semester: 4, subject: 'CS403', type: 'Lab Manual', file_name: 'CS403_Computer_Networks_Lab.pdf' },
+    { title: 'Software Engineering - Clean Architecture & Agile Sprint Guide', description: 'Agile development handbook covering user stories, burn-down charts, and SOLID principles.', dept: 'Computer Science & Engineering', year: 2, semester: 4, subject: 'CS404', type: 'Reference Book', file_name: 'CS404_Software_Engineering_Guide.pdf' },
+    { title: 'Theory of Computation - Regular Languages & Turing Machines', description: 'Grammar derivation rules, pumping lemma proofs, and Halting problem decider models.', dept: 'Computer Science & Engineering', year: 2, semester: 4, subject: 'CS405', type: 'Past Paper Solutions', file_name: 'CS405_TOC_Solutions.pdf' },
+
+    // Year 3 (Sem 5 & 6)
+    { title: 'Artificial Intelligence - Search Algorithms & Knowledge Graph', description: 'A* search, minimax tree pruning, and first-order predicate logic representations.', dept: 'Computer Science & Engineering', year: 3, semester: 5, subject: 'CS502', type: 'Lecture Notes', file_name: 'CS502_AI_Notes.pdf' },
+    { title: 'Machine Learning - Supervised Regression & SVM Classifier', description: 'Mathematical foundations of gradient descent, loss functions, and kernel tricks.', dept: 'Computer Science & Engineering', year: 3, semester: 6, subject: 'CS601', type: 'Lecture Slides', file_name: 'CS601_Machine_Learning.pdf' },
+
+    // Year 4 (Sem 7 & 8)
+    { title: 'Deep Learning - Convolutional Neural Networks & Transformers', description: 'Architecture breakdown of ResNet, Attention mechanisms, and LLM fine-tuning techniques.', dept: 'Computer Science & Engineering', year: 4, semester: 7, subject: 'CS701', type: 'Ebook', file_name: 'CS701_Deep_Learning_Architectures.pdf' },
+    { title: 'Cloud Computing & Distributed Systems - Consensus & Microservices', description: 'Paxos and Raft consensus protocols, Kubernetes deployment and API gateways.', dept: 'Computer Science & Engineering', year: 4, semester: 8, subject: 'CS801', type: 'Reference Book', file_name: 'CS801_Cloud_Distributed_Systems.pdf' }
   ];
 
-  allStudents.forEach(({ uid, targetAtt, index }) => {
-    // Sems 1, 2, 3 historical marks
-    for (const sem of [1, 2, 3]) {
-      subIds[sem].forEach((sid, i) => {
-        const skill = targetAtt;
-        const t = Math.min(97, Math.round(100 * (skill + (((i * 7 + index * 3) % 11) - 5) / 60)));
-        const internal = Math.round((t * 0.25) * 2) / 2;
-        const endsem = Math.round(t * 0.75);
-        db.prepare('INSERT INTO marks VALUES(?, ?, ?, ?, ?, ?)').run(uid, sid, Math.min(25, internal), Math.min(75, endsem), 5, 5);
-      });
-    }
-
-    // Sem 4 (Current Semester) Attendance and CIA Internals
-    subIds[4].forEach((sid, i) => {
-      const tot = [40, 42, 41, 38, 39][i];
-      // compute attended classes according to student's target attendance
-      const factor = (targetAtt + (((i * 3 + index) % 7) - 3) * 0.02);
-      const att = Math.max(18, Math.min(tot, Math.round(tot * factor)));
-      db.prepare('INSERT INTO attendance VALUES(?, ?, ?, ?)').run(uid, sid, att, tot);
-
-      const baseInternal = targetAtt > 0.75 ? 18 : 13;
-      const internal = Math.min(25, Math.max(10, baseInternal + ((index + i * 2) % 6)));
-      const assignDone = targetAtt > 0.75 ? 4 + (i % 2) : 3;
-      db.prepare('INSERT INTO marks(user_id, subject_id, internal, endsem, assign_done, assign_total) VALUES(?, ?, ?, NULL, ?, ?)')
-        .run(uid, sid, internal, assignDone, 5);
-    });
-
-    // Seed fees for all students
-    const hasDues = (index % 3 === 0);
-    const paidSem4 = hasDues ? 50000 : 87000;
-    [[1, 85000, 85000], [2, 85000, 85000], [3, 87000, 87000], [4, 87000, paidSem4]].forEach(([semester, assessed, paid]) => {
-      rec.add('fee', uid, { semester, assessed, paid });
-    });
-    rec.add('receipt', uid, {
-      no: `RCT-2026-${String(uid).padStart(4, '0')}`,
-      amount: paidSem4,
-      date: d(-25),
-      txn: `TXN${8800000000 + uid}`,
-      status: 'Paid'
-    });
+  sampleMaterials.forEach(m => {
+    const sId = subjectMap[m.subject] || null;
+    db.prepare(`
+      INSERT INTO study_materials(title, description, dept, year, semester, subject_id, material_type, file_name, uploaded_by, status)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(m.title, m.description, m.dept, m.year, m.semester, sId, m.type, m.file_name, admin, 'Published');
   });
 
-  // 7. Attendance Log for primary student (last 42 days, weekdays)
-  for (let i = 42; i >= 1; i--) {
-    const dt = new Date();
-    dt.setDate(dt.getDate() - i);
-    if ([0, 6].includes(dt.getDay())) continue;
-    const present = i > 28 ? (i % 7 !== 0) : i > 14 ? (i % 4 !== 0) : (i % 5 !== 0);
-    db.prepare('INSERT OR IGNORE INTO attendance_log(user_id, date, status) VALUES(?, ?, ?)').run(me, dt.toISOString().slice(0, 10), present ? 'present' : 'absent');
-  }
+  // 9. Seed Planner Tasks for Gaurav
+  const sampleTasks = [
+    { title: 'Review CPU Scheduling Algorithms (Round Robin & Priority)', subject: 'Operating Systems', date: d(0), time: '17:30', priority: 'High', completed: 0 },
+    { title: 'Implement Bellman-Ford shortest path algorithm in C++', subject: 'Algorithms', date: d(1), time: '18:00', priority: 'Medium', completed: 0 },
+    { title: 'Analyze Wireshark three-way handshake PCAP file', subject: 'Computer Networks', date: d(2), time: '16:00', priority: 'Low', completed: 0 },
+    { title: 'Draft UML Class Diagram for Library Management', subject: 'Software Engineering', date: d(3), time: '19:00', priority: 'Medium', completed: 0 },
+    { title: 'Solve TOC problem set 4 (Pumping Lemma on CFLs)', subject: 'Theory of Computation', date: d(-1), time: '20:00', priority: 'High', completed: 1 }
+  ];
+  sampleTasks.forEach(t => {
+    db.prepare(`INSERT INTO planner_tasks(user_id, title, subject, date, time, priority, completed) VALUES(?, ?, ?, ?, ?, ?, ?)`)
+      .run(me, t.title, t.subject, t.date, t.time, t.priority, t.completed);
+  });
 
-  // 8. Timetable
-  const s4 = CATALOG[4].map((l) => l.split('|')[1]);
-  const rooms = ['LHC-201', 'LHC-203', 'Lab 4', 'LHC-105', 'Seminar Hall'];
-  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach((day, di) => {
+  // 10. Seed Student Vehicle for Gaurav
+  db.prepare(`INSERT INTO vehicles(user_id, vehicle_type, reg_number, model, slot_assigned) VALUES(?, ?, ?, ?, ?)`)
+    .run(me, 'Two-Wheeler', 'MH-12-AB-4042', 'Yamaha FZ v3 (Matte Black)', 'P-04');
+
+  // 11. Seed Career Placement Openings with Honest Demo Label
+  const sampleJobs = [
+    { title: 'Software Engineer - Distributed Systems', company: 'Nexus Technologies', location: 'Pune / Hybrid', ctc: '14.5 LPA', deadline: d(15), eligibleSem: 4, eligibleDept: 'Computer Science & Engineering', skills: 'Go, Docker, Distributed Systems, Linux', type: 'Full Time', status: 'Active (Demo)' },
+    { title: 'Cloud Platform Intern', company: 'Apex Cloud Solutions', location: 'Bengaluru / Remote', ctc: '45,000 / month', deadline: d(20), eligibleSem: 4, eligibleDept: 'Computer Science & Engineering', skills: 'Python, AWS, Terraform, CI/CD', type: 'Internship', status: 'Active (Demo)' },
+    { title: 'Full-Stack Developer Trainee', company: 'InnoTech Labs', location: 'Hyderabad / On-site', ctc: '10.2 LPA', deadline: d(30), eligibleSem: 4, eligibleDept: 'Information Technology', skills: 'TypeScript, React, Node.js, PostgreSQL', type: 'Full Time', status: 'Active (Demo)' }
+  ];
+  sampleJobs.forEach(j => rec.add('job', null, j));
+
+  // 12. Seed Institutional Notices
+  const sampleNotices = [
+    { title: 'Mid-Semester Examinations Commencement Schedule', body: 'The university examination cell has released the academic calendar and mid-term schedule for B.Tech Semester 4. Hall tickets will be verified online.', summary: 'Mid-term exams commence from November 20. Check syllabus roadmap for unit distributions.', category: 'Academic', priority: 'High', target_year: 2, target_dept: 'Computer Science & Engineering' },
+    { title: 'Annual Inter-College Hackathon 2026 Registration Open', body: 'Teams of 3-4 students from CSE and IT are invited to submit project proposals for the Smart City Innovation Sprint.', summary: 'Cash prizes of INR 2,00,000 for top 3 teams. Registration closes on November 15.', category: 'Events', priority: 'Medium', target_year: 2, target_dept: 'Computer Science & Engineering' },
+    { title: 'Campus Wi-Fi Maintenance Window Notice', body: 'Central IT infrastructure team will be upgrading access point controllers across Hostel Blocks and Academic Complexes this Sunday from 02:00 AM to 06:00 AM.', summary: 'Brief network disruptions expected on Sunday morning.', category: 'Maintenance', priority: 'Low', target_year: null, target_dept: null }
+  ];
+  sampleNotices.forEach(n => {
+    db.prepare('INSERT INTO notices(title, body, summary, category, priority, target_year, target_dept) VALUES(?, ?, ?, ?, ?, ?, ?)')
+      .run(n.title, n.body, n.summary, n.category, n.priority, n.target_year, n.target_dept);
+  });
+
+  // 13. Seed Fee Structure for Gaurav
+  rec.add('fee', me, { title: 'Tuition Fee - Year 2 (Sem 4)', assessed: 65000, paid: 65000, due: 0, status: 'Paid', receipt: 'REC-2026-0428' });
+  rec.add('fee', me, { title: 'Laboratory & Examination Fee', assessed: 12000, paid: 12000, due: 0, status: 'Paid', receipt: 'REC-2026-0429' });
+
+  // 14. Seed Weekly Timetable for Semester 4 (Mon to Fri)
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  weekdays.forEach(day => {
     rec.add('timetable', null, {
       day,
-      slots: [0, 1, 2, 3].map((k) => {
-        const idx = (di + k) % 5;
-        return { subject: s4[idx], room: rooms[(idx + di) % 5], faculty: pick(FACULTY, idx).name };
-      })
+      slots: [
+        { time: '09:00 - 10:00', subject: 'Operating Systems', faculty: 'Dr. Rajesh Sharma', room: 'Hall 101' },
+        { time: '10:00 - 11:00', subject: 'Design & Analysis of Algorithms', faculty: 'Prof. Ananya Iyer', room: 'Hall 102' },
+        { time: '11:15 - 12:15', subject: 'Computer Networks', faculty: 'Dr. Vikram Rao', room: 'Lab 3' },
+        { time: '13:00 - 14:00', subject: 'Software Engineering', faculty: 'Prof. Meera Nair', room: 'Hall 204' },
+        { time: '14:00 - 15:00', subject: 'Theory of Computation', faculty: 'Dr. Suresh Kulkarni', room: 'Hall 101' }
+      ]
     });
   });
 
-  // 9. Notices
-  const notices = [
-    ['Mid-Semester Examination Schedule Released', 'The mid-semester examinations will commence on ' + d(9).split('-').reverse().join('/') + '. Students must carry their ID card and hall ticket. Detailed timetable is available in the Exam Schedule tab. Students with attendance below 75% must meet their mentor before the exams.', 'Exams', 'High'],
-    ['Campus Placement Drive: TCS, Infosys & Wipro', 'The Training and Placement Cell announces the placement drive for final-year students on 15 Nov 2026. Eligible students must update their resume and register before 10 Nov 2026. Pre-placement talks will be held in the main auditorium.', 'Placement', 'Medium'],
-    ['Library Timings Extended During Exams', 'The central library will remain open from 8 AM to 11 PM during the examination period. Digital library access is available 24x7 with your college credentials. Silence must be maintained in reading halls.', 'Library', 'Low'],
-    ['Hackathon 2026: Build for Campus', 'The annual college hackathon "Build for Campus" is scheduled for 22 Nov 2026. Teams of up to four can register through the Community Hub. Winning teams receive cash prizes and internship opportunities.', 'Events', 'Medium'],
-    ['Hostel Fee Payment Last Date', 'Hostel fee for the odd semester must be paid by 5 Nov 2026 to avoid a late fine of Rs. 500. Payment can be made online through the Academics & Fees section.', 'Fees', 'High']
-  ];
-  for (const [title, body, cat, pr] of notices) {
-    db.prepare('INSERT INTO notices(title, body, summary, category, priority) VALUES(?, ?, ?, ?, ?)').run(title, body, ai.summarizeNotice(body), cat, pr);
+  // 15. Seed Parking Slots (12 slots)
+  for (let i = 1; i <= 12; i++) {
+    rec.add('parking_slot', null, {
+      slot: `P-${String(i).padStart(2, '0')}`,
+      type: i <= 8 ? '2-wheeler' : '4-wheeler',
+      taken: i === 4 ? true : (i % 3 === 0), // P-04 is Gaurav's slot
+      reservedFor: i === 4 ? '2024CS0042' : null
+    });
   }
 
-  // 10. Calendar Events + Exams
-  [['Internal Assessment II', 7, 'exam'], ['Mid-Semester Exams Begin', 9, 'exam'], ['Project Review 1', 12, 'assignment'], ['AI/ML Workshop', 15, 'class'], ['Hackathon: Build for Campus', 24, 'meeting'], ['Project Review 2', 33, 'assignment'], ['Guest Lecture: Cloud Careers', 18, 'class'], ['Tech Fest Inauguration', 40, 'meeting'], ['End-Semester Exams Begin', 55, 'exam']]
-    .forEach(([title, off, type]) => rec.add('event', null, { title, date: d(off), type }));
-  CATALOG[4].forEach((l, i) => rec.add('exam', null, { subject: l.split('|')[1], type: i % 2 ? 'Mid-Sem' : 'Internal', date: d(9 + i * 2), time: i % 2 ? '14:00 - 16:00' : '10:00 - 12:00', room: pick(['Exam Hall A', 'Exam Hall B', 'LHC-201'], i) }));
+  // 16. Seed Student Projects
+  const pj = rec.add('project', me, { title: 'AI Smart Campus System', desc: 'Unified student services, attendance tracking and academic intelligence platform.', guide: 'Dr. Vikram Rao', status: 'Active', progress: 80 });
+  rec.add('milestone', me, { project_id: pj.id, title: 'Requirements & Architecture Specification', due: d(-30), done: true });
+  rec.add('milestone', me, { project_id: pj.id, title: 'Database Schema & Secure REST APIs', due: d(-10), done: true });
+  rec.add('milestone', me, { project_id: pj.id, title: 'Student Portal & Admin Refinements', due: d(5), done: false });
 
-  // 11. Initial student profile data
-  rec.add('wallet', me, { balance: 1200 });
-  rec.add('planner', me, { targetCgpa: 9, studyHours: 5 });
-  rec.add('resume', me, { name: 'Gaurav Sharma', email: 'gaurav.cs@smartcampus.edu', summary: 'Second-year CSE student passionate about web development, distributed systems and AI. Built a campus attendance app with Node.js and SQL.' });
+  // 17. Seed Helpdesk Tickets
+  rec.add('ticket', me, { title: 'Inquiry regarding dual-monitor setup in Lab 3', category: 'Academic / Lab', desc: 'Can students access secondary monitors for distributed computing simulations?', status: 'Resolved', resolution: 'Permitted during scheduled lab hours. Contact Lab Incharge.', priority: 'Low' });
 
-  // 12. Starter Campus Jobs & Services
-  [['Software Engineer', 'TCS', 'full-time', '7 LPA', 'Java, SQL, Data Structures', 'Digital hiring drive for 2027 batch.'], ['Associate Developer', 'Infosys', 'full-time', '6.5 LPA', 'Python, SQL, Communication', 'Specialist programmer track.'], ['AI/ML Intern', 'Zoho', 'internship', '25k / month', 'Python, Machine Learning, NLP', '6-month paid internship.'], ['Web Dev Intern', 'Razorpay', 'internship', '30k / month', 'JavaScript, React, Node', 'Remote friendly.'], ['Cloud Engineer', 'Wipro', 'full-time', '6 LPA', 'AWS, Linux, Docker', 'Cloud infra role.'], ['Data Analyst Intern', 'Mu Sigma', 'internship', '20k / month', 'SQL, Excel, Power BI', 'Analytics bootcamp.']]
-    .forEach(([title, company, type, pay, skills, desc]) => rec.add('job', null, { title, company, type, pay, skills, desc }));
-  rec.add('interview', me, { company: 'Zoho', role: 'AI/ML Intern', date: d(6), mode: 'Online · Google Meet' });
+  // 18. Initial Notification
+  notify(me, 'Welcome to Smart Campus. Your semester 4 academic dashboard is ready.', 'info', 'welcome');
 
-  [['Operating Systems Notes', 'Computer Science', 'Processes, scheduling, memory and file systems - exam oriented notes.'], ['DBMS Quick Revision', 'Computer Science', 'ER diagrams, normalization and SQL cheat-sheet.'], ['Engineering Mathematics Formula Book', 'Mathematics', 'All key formulas for calculus, matrices and series.'], ['Computer Networks Unit Notes', 'Computer Science', 'OSI model, TCP/IP and routing explained.'], ['Algorithm Design Handbook', 'Computer Science', 'Greedy, DP and divide-and-conquer with worked examples.']]
-    .forEach(([title, subject, description]) => rec.add('library_file', null, { title, subject, description }));
-  rec.add('borrow', me, { title: 'Operating System Concepts (Silberschatz)', borrowed: d(-12), due: d(2), status: 'Borrowed' });
-  rec.add('borrow', me, { title: 'Introduction to Algorithms (CLRS)', borrowed: d(-40), due: d(-26), status: 'Returned' });
-
-  [['GATE', 'GATE CSE Full Mock 1', 180, 65], ['GATE', 'GATE Aptitude Sectional', 60, 30], ['GATE', 'GATE OS & DBMS Topic Test', 90, 40], ['NEET', 'NEET Biology Mock', 180, 90], ['UPSC', 'UPSC Prelims GS Paper I', 120, 100], ['CAT', 'CAT Quant Sectional', 40, 22]]
-    .forEach(([exam, title, mins, qs]) => rec.add('mocktest', null, { exam, title, mins, qs }));
-
-  [['Operating System Concepts', 'Book', 650], ['Algorithms Unlocked', 'Book', 520], ['Campus Hoodie', 'Merchandise', 799], ['College T-Shirt', 'Merchandise', 349], ['Notebook Pack (5)', 'Stationery', 250], ['Gel Pen Set', 'Stationery', 120]]
-    .forEach(([name, category, price]) => rec.add('store_item', null, { name, category, price }));
-  [['Masala Dosa', 60], ['Veg Biryani', 90], ['Paneer Wrap', 80], ['Filter Coffee', 25], ['Samosa (2)', 30], ['Fresh Lime Soda', 35]].forEach(([name, price]) => rec.add('menu_item', null, { name, price }));
-
-  for (let i = 1; i <= 12; i++) rec.add('parking_slot', null, { slot: `P-${String(i).padStart(2, '0')}`, type: i <= 8 ? '2-wheeler' : '4-wheeler', taken: i % 3 === 0 });
-  [['Cloud Careers Webinar', 3, 'Live'], ['AI in Healthcare Guest Lecture', 8, 'Upcoming'], ['Resume Workshop', 14, 'Upcoming']].forEach(([title, off, status]) => rec.add('live_event', null, { title, date: d(off), status }));
-
-  // Sample Helpdesk Grievances
-  rec.add('ticket', cseUserIds[5].id, { title: 'Wi-Fi connection drop in Hostel Block C', category: 'IT / Wi-Fi', desc: 'Frequent disconnections and low signal strength on the 2nd floor.', status: 'In Progress', priority: 'Medium' });
-  rec.add('ticket', itUserIds[4].id, { title: 'Lab 4 workstation display flickering', category: 'Maintenance', desc: 'Desktop PC #12 screen flickers repeatedly during lab sessions.', status: 'Open', priority: 'High' });
-
-  // Sample Student Leave Requests
-  rec.add('leave', cseUserIds[2].id, { from: d(3), to: d(5), reason: 'Family medical emergency', status: 'Pending' });
-  rec.add('leave', itUserIds[1].id, { from: d(-4), to: d(-2), reason: 'Attended Inter-College Tech Symposium', status: 'Approved', remarks: 'Duty Leave approved' });
-
-  // Community posts
-  [['general', 'Campus Admin', 'Welcome to the new academic session! All course syllabus and schedules have been updated.'], ['tech', 'Gaurav Sharma', 'Does anyone have good references for multivariable calculus practice questions?'], ['hostel', 'Rahul Nair', 'Mess committee meeting this Thursday at 6 PM.']]
-    .forEach(([channel, name, message]) => rec.add('chat', null, { channel, name, message }));
-
-  const pj = rec.add('project', me, { title: 'AI Powered Campus Assistant', desc: 'Chatbot, attendance analytics and service portals for university students.', guide: 'Dr. Vikram Rao', status: 'Active', progress: 55 });
-  rec.add('milestone', me, { project_id: pj.id, title: 'Requirements & Architecture', due: d(-10), done: true });
-  rec.add('milestone', me, { project_id: pj.id, title: 'Backend APIs & SQLite Database', due: d(-2), done: true });
-  rec.add('milestone', me, { project_id: pj.id, title: 'Admin Console & Telemetry Dashboards', due: d(5), done: false });
-  rec.add('update', me, { project_id: pj.id, value: 55, note: 'Completed Admin Panel and institutional database seeding.' });
-
-  notify(me, 'Welcome to the AI-Powered Smart Campus System. Your AI advisor is ready.', 'info', 'welcome');
   return { me, admin };
 }
 

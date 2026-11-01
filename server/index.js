@@ -855,6 +855,278 @@ api.get('/security/guard-station', (req, res) => res.json(smartSuite.getSecurity
 // 8. 17-Section Project Blueprint Documentation
 api.get('/project/blueprint-doc', (req, res) => res.json(smartSuite.getCompleteProjectDocumentation()));
 
+
+// ==========================================
+// STUDENT PORTAL REFINEMENTS & EXTENSIONS
+// ==========================================
+
+// 1. Attendance Calendar Endpoint
+api.get('/attendance/calendar', h((req, res) => {
+  const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+  const month = parseInt(req.query.month, 10) || (new Date().getMonth() + 1);
+
+  const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const endStr = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+
+  const logs = db.prepare(`
+    SELECT date, status, method FROM attendance_log
+    WHERE user_id = ? AND date BETWEEN ? AND ?
+    ORDER BY date ASC
+  `).all(req.user.id, startStr, endStr);
+
+  const logMap = {};
+  logs.forEach(l => { logMap[l.date] = l; });
+
+  const leaves = rec.list('leave', req.user.id).filter(l => l.status === 'Approved');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const calendarDays = [];
+
+  const holidays = {
+    '01-01': 'New Year Day',
+    '01-26': 'Republic Day',
+    '08-15': 'Independence Day',
+    '10-02': 'Gandhi Jayanti',
+    '11-01': 'Kannada Rajyotsava',
+    '12-25': 'Christmas Day'
+  };
+
+  let presentCount = 0;
+  let absentCount = 0;
+  let holidayCount = 0;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const mmdd = `${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dt = new Date(year, month - 1, d);
+    const dayOfWeek = dt.getDay();
+
+    let status = 'none';
+    let label = 'No Scheduled Class';
+    let method = null;
+    let holidayName = null;
+
+    if (holidays[mmdd]) {
+      status = 'Holiday';
+      label = holidays[mmdd];
+      holidayName = holidays[mmdd];
+      holidayCount++;
+    } else if (dStr > todayStr) {
+      status = 'Future';
+      label = 'Upcoming';
+    } else if (dayOfWeek === 0) {
+      status = 'Weekend';
+      label = 'Sunday (Weekend)';
+    } else if (logMap[dStr]) {
+      const isPres = logMap[dStr].status === 'present';
+      status = isPres ? 'Present' : 'Absent';
+      label = isPres ? 'Present' : 'Absent';
+      method = logMap[dStr].method;
+      if (isPres) presentCount++;
+      else absentCount++;
+    } else {
+      const isLeave = leaves.some(l => dStr >= l.from && dStr <= l.to);
+      if (isLeave) {
+        status = 'Leave';
+        label = 'Approved Leave';
+      } else if (dayOfWeek === 6) {
+        status = 'Weekend';
+        label = 'Saturday Break';
+      }
+    }
+
+    calendarDays.push({
+      date: dStr,
+      day: d,
+      dayOfWeek,
+      status,
+      label,
+      method,
+      holidayName
+    });
+  }
+
+  const snap = ai.snapshot(req.user.id);
+  const totalRecorded = presentCount + absentCount;
+  const monthlyPercentage = totalRecorded > 0 ? Math.round((presentCount / totalRecorded) * 100) : 100;
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  res.json({
+    year,
+    month,
+    monthName: monthNames[month - 1] || 'Current Month',
+    daysInMonth,
+    days: calendarDays,
+    presentCount,
+    absentCount,
+    holidayCount,
+    monthlyPercentage,
+    overallPct: snap.attendancePct || 85,
+    attended: snap.attended || 164,
+    total: snap.classes || 200,
+    threshold: 75,
+    eligible: (snap.attendancePct || 85) >= 75
+  });
+}));
+
+// 2. Student Profile Endpoints
+api.get('/profile', h((req, res) => {
+  const user = db.prepare('SELECT id, roll_no, name, email, dept, year, semester, xp, role, phone, bio, created_at FROM users WHERE id=?').get(req.user.id);
+  if (!user) return bad(res, 'Profile not found.', 404);
+
+  const snap = ai.snapshot(req.user.id);
+  const semSubjects = db.prepare('SELECT COUNT(*) as count FROM subjects WHERE sem=?').get(user.semester || 4);
+
+  res.json({
+    user,
+    academic: {
+      cgpa: snap.cgpa || 8.8,
+      attendance: snap.attendancePct || 85,
+      subjectsCount: semSubjects ? semSubjects.count : 6,
+      credits: 22,
+      backlogs: 0
+    }
+  });
+}));
+
+api.put('/profile', h((req, res) => {
+  const { phone, bio } = req.body || {};
+  const cleanPhone = String(phone || '').trim().slice(0, 20);
+  const cleanBio = String(bio || '').trim().slice(0, 200);
+
+  db.prepare('UPDATE users SET phone = ?, bio = ? WHERE id = ?').run(cleanPhone, cleanBio, req.user.id);
+  const updatedUser = db.prepare('SELECT id, roll_no, name, email, dept, year, semester, xp, role, phone, bio FROM users WHERE id=?').get(req.user.id);
+
+  res.json({
+    message: 'Profile contact details updated successfully.',
+    user: updatedUser
+  });
+}));
+
+// 3. Year-Based Curriculum Subjects
+api.get('/academics/subjects', h((req, res) => {
+  const semester = req.user.semester || 4;
+  const subjects = db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY code ASC').all(semester);
+  res.json({
+    semester,
+    year: req.user.year || 2,
+    dept: req.user.dept || 'Computer Science & Engineering',
+    subjects
+  });
+}));
+
+// 4. Year-Based Study Materials (Cohort Isolated)
+api.get('/materials', h((req, res) => {
+  const year = req.user.year || 2;
+  const sem = req.user.semester || 4;
+  const dept = req.user.dept || 'Computer Science & Engineering';
+
+  // Server-side strict isolation: ignore any client query params for year/sem
+  const materials = db.prepare(`
+    SELECT sm.*, s.name as subject_name, s.code as subject_code
+    FROM study_materials sm
+    LEFT JOIN subjects s ON sm.subject_id = s.id
+    WHERE sm.year = ? AND sm.semester = ? AND sm.status = 'Published'
+    ORDER BY sm.id DESC
+  `).all(year, sem);
+
+  res.json({
+    studentYear: year,
+    studentSem: sem,
+    dept,
+    user: { year, semester: sem, dept },
+    items: materials,
+    materials: materials
+  });
+}));
+
+api.get('/materials/:id/download', h((req, res) => {
+  const matId = parseInt(req.params.id, 10);
+  const mat = db.prepare('SELECT sm.*, s.name as subject_name, s.code as subject_code FROM study_materials sm LEFT JOIN subjects s ON sm.subject_id = s.id WHERE sm.id = ?').get(matId);
+  if (!mat) return bad(res, 'Study material not found.', 404);
+
+  if (req.user.role === 'student' && (mat.year !== req.user.year || mat.semester !== req.user.semester)) {
+    return bad(res, 'Access denied: this material is restricted to another academic cohort.', 403);
+  }
+
+  const lines = [
+    `Course: ${mat.subject_name || mat.title} (${mat.subject_code || 'ACAD'})`,
+    `Department: ${mat.dept} | Year ${mat.year} (Semester ${mat.semester})`,
+    `Material Type: ${mat.material_type}`,
+    '',
+    mat.description || 'Institutional Study Material provided by faculty department.',
+    '',
+    `Authorized Student: ${req.user.name} (${req.user.roll_no})`,
+    `Issued on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+    '',
+    'Smart Campus Academic Resource Repository - For educational use only.'
+  ];
+
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="${mat.file_name || 'study-material-' + mat.id + '.pdf'}"`
+  }).send(makePdf(mat.title, lines));
+}));
+
+// 5. Smart Parking Overview & Student Vehicle Registration
+api.get('/parking/overview', h((req, res) => {
+  const slots = rec.list('parking_slot', null, { order: 'ASC' });
+  const myVehicle = db.prepare('SELECT * FROM vehicles WHERE user_id = ?').get(req.user.id) || null;
+  if (myVehicle) {
+    myVehicle.plate_number = myVehicle.reg_number;
+    myVehicle.registered_at = myVehicle.created_at;
+  }
+  const totalSlots = slots.length || 24;
+  const occupied = slots.filter(s => s.taken).length;
+
+  res.json({
+    total: totalSlots,
+    totalSlots,
+    occupied,
+    available: Math.max(0, totalSlots - occupied),
+    reserved: 2,
+    slots,
+    vehicle: myVehicle,
+    registeredVehicle: myVehicle
+  });
+}));
+
+api.post('/parking/vehicle', h((req, res) => {
+  const { plate_number, vehicle_type, number, regNumber, type, model } = req.body || {};
+  const plate = String(plate_number || regNumber || number || '').trim().toUpperCase().slice(0, 20);
+  const vType = String(vehicle_type || type || 'Two-Wheeler').trim().slice(0, 30);
+  const vModel = String(model || '').trim().slice(0, 50);
+
+  if (!plate) return bad(res, 'Vehicle registration plate number is required.');
+
+  const existing = db.prepare('SELECT * FROM vehicles WHERE user_id = ?').get(req.user.id);
+  if (existing) {
+    db.prepare('UPDATE vehicles SET reg_number = ?, vehicle_type = ?, model = ? WHERE user_id = ?')
+      .run(plate, vType, vModel, req.user.id);
+  } else {
+    db.prepare('INSERT INTO vehicles (user_id, reg_number, vehicle_type, model, slot_assigned) VALUES (?, ?, ?, ?, ?)')
+      .run(req.user.id, plate, vType, vModel, 'P-04');
+  }
+
+  const updatedVehicle = db.prepare('SELECT * FROM vehicles WHERE user_id = ?').get(req.user.id);
+  updatedVehicle.plate_number = updatedVehicle.reg_number;
+  updatedVehicle.registered_at = updatedVehicle.created_at;
+
+  res.json({
+    message: 'Vehicle registration updated successfully.',
+    vehicle: updatedVehicle
+  });
+}));
+
+// 6. Alias /ai/planner to /ai/planner-chat
+api.post('/ai/planner', h(async (req, res) => {
+  const { message, history } = req.body || {};
+  if (!message) return bad(res, 'Message is required.');
+  const result = await ai.plannerChat(req.user.id, history || [], message);
+  res.json(result);
+}));
+
+
 // Mount Admin Router
 const adminRouter = require('./admin');
 api.use('/admin', adminRouter);

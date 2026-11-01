@@ -563,6 +563,129 @@ const t = async (name, fn) => {
     assert.strictEqual(docRes.body.sections.length, 17);
   });
 
+
+  await t('attendance calendar endpoint (monthly breakdown, eligibility & holidays)', async () => {
+    const calRes = await call('GET', '/attendance/calendar?year=2026&month=10', null, token);
+    assert.strictEqual(calRes.status, 200);
+    assert.strictEqual(calRes.body.year, 2026);
+    assert.strictEqual(calRes.body.month, 10);
+    assert.ok(Array.isArray(calRes.body.days));
+    assert.strictEqual(calRes.body.days.length, 31);
+    assert.strictEqual(typeof calRes.body.monthlyPercentage, 'number');
+    assert.ok(calRes.body.presentCount >= 0);
+    assert.ok(calRes.body.absentCount >= 0);
+
+    // Verify holidays are properly labeled
+    const gandhiJayanti = calRes.body.days.find(d => d.day === 2);
+    assert.ok(gandhiJayanti);
+    assert.strictEqual(gandhiJayanti.status, 'Holiday');
+    assert.strictEqual(gandhiJayanti.holidayName, 'Gandhi Jayanti');
+  });
+
+  await t('year-based study materials access & security isolation', async () => {
+    // 1. Test student academic cohort (Year 2, Sem 4 default)
+    const matRes = await call('GET', '/materials', null, token);
+    assert.strictEqual(matRes.status, 200);
+    assert.strictEqual(matRes.body.studentYear, 2);
+    assert.strictEqual(matRes.body.studentSem, 4);
+    assert.ok(Array.isArray(matRes.body.materials));
+    assert.ok(matRes.body.materials.length >= 1);
+
+    // Every returned material must match the student's Year 2 cohort
+    matRes.body.materials.forEach(m => {
+      assert.strictEqual(m.year, 2, 'Must only receive Year 2 materials');
+      assert.strictEqual(m.semester, 4, 'Must only receive Semester 4 materials');
+    });
+
+    // Tamper test: query param tampering with ?year=4 must be IGNORED
+    const tamperRes = await call('GET', '/materials?year=4&semester=8', null, token);
+    assert.strictEqual(tamperRes.status, 200);
+    assert.strictEqual(tamperRes.body.studentYear, 2);
+    tamperRes.body.materials.forEach(m => {
+      assert.strictEqual(m.year, 2, 'Query parameter tampering must not leak Year 4 content');
+    });
+
+    // 2. Test demo student Gaurav (Year 2, Sem 4)
+    const gauravLogin = await call('POST', '/auth/login', { id: '2024CS0042', password: 'student123' });
+    assert.strictEqual(gauravLogin.status, 200);
+    assert.ok(gauravLogin.body.token);
+
+    const gauravMatRes = await call('GET', '/materials', null, gauravLogin.body.token);
+    assert.strictEqual(gauravMatRes.status, 200);
+    assert.strictEqual(gauravMatRes.body.studentYear, 2);
+    assert.strictEqual(gauravMatRes.body.studentSem, 4);
+    assert.ok(gauravMatRes.body.materials.length >= 1);
+    gauravMatRes.body.materials.forEach(m => {
+      assert.strictEqual(m.year, 2, 'Gaurav must only receive Year 2 materials');
+      assert.strictEqual(m.semester, 4, 'Gaurav must only receive Semester 4 materials');
+    });
+
+    // Download endpoint verification
+    const firstMat = gauravMatRes.body.materials[0];
+    const dlRes = await call('GET', `/materials/${firstMat.id}/download`, null, gauravLogin.body.token);
+    assert.strictEqual(dlRes.status, 200);
+    assert.ok(typeof dlRes.body === 'string' && dlRes.body.includes('PDF'));
+  });
+
+  await t('student profile reading and personal contact update', async () => {
+    const profRes = await call('GET', '/profile', null, token);
+    assert.strictEqual(profRes.status, 200);
+    assert.strictEqual(profRes.body.user.name, 'Test Student');
+    assert.strictEqual(profRes.body.user.year, 2);
+
+    // Update phone & bio
+    const updateRes = await call('PUT', '/profile', {
+      phone: '+91 98765 00042',
+      bio: 'Systems Programming & Algorithms Enthusiast'
+    }, token);
+    assert.strictEqual(updateRes.status, 200);
+    assert.strictEqual(updateRes.body.user.phone, '+91 98765 00042');
+    assert.strictEqual(updateRes.body.user.bio, 'Systems Programming & Algorithms Enthusiast');
+
+    // Also verify demo student Gaurav profile
+    const gauravLogin = await call('POST', '/auth/login', { id: '2024CS0042', password: 'student123' });
+    const gauravProf = await call('GET', '/profile', null, gauravLogin.body.token);
+    assert.strictEqual(gauravProf.status, 200);
+    assert.strictEqual(gauravProf.body.user.name, 'Gaurav');
+    assert.strictEqual(gauravProf.body.user.roll_no, '2024CS0042');
+    assert.strictEqual(gauravProf.body.user.year, 2);
+    assert.strictEqual(gauravProf.body.user.semester, 4);
+  });
+
+  await t('smart parking overview and student vehicle registration', async () => {
+    const parkRes = await call('GET', '/parking/overview', null, token);
+    assert.strictEqual(parkRes.status, 200);
+    assert.strictEqual(parkRes.body.total >= 12, true);
+    assert.ok(parkRes.body.available > 0);
+    assert.ok(Array.isArray(parkRes.body.slots));
+    assert.ok(parkRes.body.slots.length >= 12);
+
+    // Register student vehicle
+    const regRes = await call('POST', '/parking/vehicle', {
+      plate_number: 'KA-01-EQ-9988',
+      vehicle_type: 'Two Wheeler'
+    }, token);
+    assert.strictEqual(regRes.status, 200);
+    assert.strictEqual(regRes.body.vehicle.plate_number, 'KA-01-EQ-9988');
+
+    // Overview now reflects the registered vehicle
+    const afterRes = await call('GET', '/parking/overview', null, token);
+    assert.strictEqual(afterRes.status, 200);
+    assert.ok(afterRes.body.registeredVehicle);
+    assert.strictEqual(afterRes.body.registeredVehicle.plate_number, 'KA-01-EQ-9988');
+  });
+
+  await t('faculty directory and academic consultation hours', async () => {
+    const facRes = await call('GET', '/faculty', null, token);
+    assert.strictEqual(facRes.status, 200);
+    assert.ok(Array.isArray(facRes.body));
+    assert.ok(facRes.body.length >= 5);
+    const hod = facRes.body.find(f => f.name && f.name.includes('Rajesh Sharma'));
+    assert.ok(hod);
+    assert.ok(hod.cabin);
+    assert.ok(hod.office_hours || hod.officeHours);
+  });
+
   await t('admin login & panel access (role verified from database)', async () => {
     const a = await call('POST', '/auth/login', { id: 'ADMIN001', password: 'student123' });
     assert.strictEqual(a.status, 200);

@@ -168,6 +168,7 @@ async function boot() {
   if (!token()) return showLogin();
   try { me = await api('/auth/me'); } catch { return; }
   $('studentName').textContent = me.name;
+  const topName = $('topHeaderStudentName'); if (topName) topName.textContent = me.name ? me.name.split(' ')[0] : 'Profile';
   if (me.role === 'admin' || me.role === 'super_admin') {
     let adminBtn = $('adminConsoleBtn');
     if (!adminBtn) {

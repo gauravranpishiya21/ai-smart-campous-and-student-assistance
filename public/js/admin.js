@@ -995,6 +995,211 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // Window exports for UI event handlers
+
+// ==========================================
+// Section: Study Materials & Digital Library
+// ==========================================
+const departmentSubjectMap = {
+  'Computer Science & Engineering': {
+    1: ['Engineering Mathematics I', 'Physics for Computing', 'Basic Electrical Engineering'],
+    2: ['Engineering Mathematics II', 'Programming in C', 'Digital Logic Design'],
+    3: ['Data Structures', 'Discrete Mathematics', 'Computer Organization'],
+    4: ['Design & Analysis of Algorithms', 'Operating Systems', 'Database Management Systems', 'Theory of Computation'],
+    5: ['Computer Networks', 'Software Engineering', 'Web Technologies'],
+    6: ['Compiler Design', 'Artificial Intelligence', 'Cryptography & Network Security'],
+    7: ['Machine Learning', 'Cloud Computing', 'Distributed Systems'],
+    8: ['Deep Learning', 'Quantum Computing', 'Project Phase II']
+  },
+  'Information Technology': {
+    1: ['Engineering Mathematics I', 'Physics for Computing', 'Basic Electronics'],
+    2: ['Engineering Mathematics II', 'Problem Solving with Python', 'Digital Principles'],
+    3: ['Object Oriented Programming', 'Data Structures', 'Computer Architecture'],
+    4: ['Information Security Fundamentals', 'Operating Systems', 'Database Engineering'],
+    5: ['Network Security', 'Full Stack Development', 'Software Architecture'],
+    6: ['Big Data Analytics', 'Mobile Application Development', 'Internet of Things'],
+    7: ['Cloud Security', 'DevOps & CI/CD', 'Information Retrieval'],
+    8: ['Enterprise Computing', 'Blockchain Architecture', 'Capstone Project']
+  },
+  'Electronics & Communication': {
+    1: ['Engineering Mathematics I', 'Applied Physics', 'Basics of Civil & Mechanical'],
+    2: ['Engineering Mathematics II', 'Electronic Devices & Circuits', 'Network Theory'],
+    3: ['Analog Electronics', 'Digital System Design', 'Signals and Systems'],
+    4: ['Electromagnetic Fields', 'Linear Integrated Circuits', 'Microprocessors'],
+    5: ['Digital Communication', 'Control Systems', 'Antennas and Propagation'],
+    6: ['VLSI Design', 'Digital Signal Processing', 'Wireless Networks'],
+    7: ['Embedded Systems', 'Optical Communication', 'Microwave Engineering'],
+    8: ['Satellite Communication', 'Radar & Navigation', 'Major Project']
+  },
+  'Mechanical Engineering': {
+    1: ['Engineering Mathematics I', 'Engineering Chemistry', 'Engineering Graphics'],
+    2: ['Engineering Mathematics II', 'Engineering Mechanics', 'Material Science'],
+    3: ['Thermodynamics', 'Fluid Mechanics', 'Strength of Materials'],
+    4: ['Kinematics of Machinery', 'Manufacturing Technology', 'Applied Thermodynamics'],
+    5: ['Dynamics of Machinery', 'Heat Transfer', 'Design of Machine Elements'],
+    6: ['CAD/CAM', 'Automobile Engineering', 'Refrigeration & Air Conditioning'],
+    7: ['Finite Element Analysis', 'Operations Research', 'Power Plant Engineering'],
+    8: ['Robotics & Automation', 'Total Quality Management', 'Final Project']
+  }
+};
+
+function onAdminYearChange() {
+  const yearSelect = document.getElementById('adminMatYear');
+  const semSelect = document.getElementById('adminMatSemester');
+  if (!yearSelect || !semSelect) return;
+
+  const y = parseInt(yearSelect.value, 10) || 1;
+  const startSem = (y - 1) * 2 + 1;
+  const endSem = startSem + 1;
+
+  semSelect.innerHTML = `
+    <option value="${startSem}">Semester ${startSem}</option>
+    <option value="${endSem}" selected>Semester ${endSem}</option>
+  `;
+
+  onAdminContextChange();
+}
+
+function onAdminContextChange() {
+  const deptSelect = document.getElementById('adminMatDept');
+  const semSelect = document.getElementById('adminMatSemester');
+  const subjSelect = document.getElementById('adminMatSubject');
+  if (!deptSelect || !semSelect || !subjSelect) return;
+
+  const dept = deptSelect.value;
+  const sem = parseInt(semSelect.value, 10) || 1;
+
+  const deptMap = departmentSubjectMap[dept] || departmentSubjectMap['Computer Science & Engineering'];
+  const subjects = deptMap[sem] || ['Core Technical Subject', 'Elective Subject', 'Laboratory'];
+
+  subjSelect.innerHTML = subjects.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+}
+
+async function loadDigitalLibraryFiles() {
+  const listEl = document.getElementById('digitalLibraryFilesList');
+  const countEl = document.getElementById('ebookCount');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<p class="text-xs text-slate-500 italic p-4 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading study materials...</p>';
+
+  try {
+    const materials = await api('/admin/materials');
+    if (countEl) countEl.textContent = `${materials.length} materials`;
+
+    if (!materials.length) {
+      listEl.innerHTML = '<p class="text-xs text-slate-500 italic p-8 text-center">No study materials published yet. Use the upload form on the left to add documents.</p>';
+      return;
+    }
+
+    listEl.innerHTML = materials.map(m => {
+      const sizeKb = Math.round((m.file_size || 0) / 1024);
+      const sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+      const createdStr = m.created_at ? new Date(m.created_at).toLocaleDateString() : 'Recent';
+
+      return `
+        <div class="p-3.5 bg-slate-800/80 border border-slate-700/80 rounded-xl hover:border-indigo-500/50 transition flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-lg shrink-0">
+              <i class="fas ${m.material_type === 'Question Paper' ? 'fa-file-lines' : m.material_type === 'Lab Manual' ? 'fa-flask' : 'fa-file-pdf'}"></i>
+            </div>
+            <div class="min-w-0">
+              <h4 class="text-xs font-bold text-white truncate">${esc(m.title)}</h4>
+              <p class="text-[10px] text-slate-400 mt-0.5 truncate">
+                <span class="font-bold text-indigo-300">${esc(m.subject)}</span> ·
+                <span>Year ${m.academic_year || 1} (Sem ${m.semester || 1})</span> ·
+                <span class="text-slate-400">${esc(m.department || '')}</span>
+              </p>
+              <div class="flex items-center gap-2 mt-1 text-[9px] text-slate-500">
+                <span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 font-bold">${esc(m.material_type || 'PDF')}</span>
+                <span>${sizeStr}</span>
+                <span>• Uploaded ${createdStr}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <a href="/api/materials/${m.id}/download" target="_blank" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200 transition" title="Download Material">
+              <i class="fas fa-download"></i>
+            </a>
+            <button type="button" onclick="deleteStudyMaterial(${m.id})" class="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 rounded-lg text-xs font-bold text-rose-300 transition" title="Delete Material">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    listEl.innerHTML = `<p class="text-xs text-rose-400 p-4 text-center">Failed to load materials: ${esc(err.message)}</p>`;
+  }
+}
+
+async function handleStudyMaterialUpload(e) {
+  e.preventDefault();
+  const form = document.getElementById('digitalLibraryUploadForm');
+  const statusEl = document.getElementById('adminMatUploadStatus');
+  const btn = document.getElementById('adminMatUploadBtn');
+  if (!form) return;
+
+  const fileInput = document.getElementById('adminMatFile');
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+    toast('Please select a file to upload.', 'warning');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  if (file.size > 20 * 1024 * 1024) {
+    toast('File size exceeds the 20MB institutional limit.', 'error');
+    return;
+  }
+
+  const formData = new FormData(form);
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Uploading &amp; Validating...';
+  }
+  if (statusEl) statusEl.textContent = 'Transferring file to secure vault...';
+
+  try {
+    const tokenStr = localStorage.getItem('token');
+    const res = await fetch('/api/admin/materials', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + tokenStr
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to upload material');
+
+    toast('Study material published successfully!', 'success');
+    form.reset();
+    onAdminYearChange();
+    if (statusEl) statusEl.textContent = '';
+    await loadDigitalLibraryFiles();
+
+  } catch (err) {
+    toast('Upload failed: ' + err.message, 'error');
+    if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-cloud-arrow-up mr-1.5"></i> Publish Study Material';
+    }
+  }
+}
+
+async function deleteStudyMaterial(id) {
+  if (!confirm('Are you sure you want to permanently delete this study material?')) return;
+  try {
+    await api('/admin/materials/' + id, { method: 'DELETE' });
+    toast('Study material removed from repository.', 'info');
+    await loadDigitalLibraryFiles();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+}
+
 Object.assign(window, {
   showSection,
   openModal,

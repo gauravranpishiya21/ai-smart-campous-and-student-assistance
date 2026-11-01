@@ -374,18 +374,24 @@ api.post('/forum/:id/reply', h((req, res) => {
 // ---------- academics content ----------
 const subjOut = (s) => ({ id: s.id, code: s.code, name: s.name, credits: s.credits, sem: s.sem, category: s.category, prereq: s.prereq, faculty: s.faculty, modules: s.modules.split(';') });
 api.get('/syllabus', (req, res) => {
-  const subs = db.prepare('SELECT * FROM subjects ORDER BY sem,id').all(), sems = {};
+  const isStudent = req.user.role === 'student';
+  const targetSem = isStudent ? (req.user.semester || 1) : null;
+  const subs = targetSem
+    ? db.prepare('SELECT * FROM subjects WHERE sem=? ORDER BY sem,id').all(targetSem)
+    : db.prepare('SELECT * FROM subjects ORDER BY sem,id').all();
+  const sems = {};
   subs.forEach((s) => (sems[s.sem] ||= []).push(subjOut(s)));
-  res.json({ enrolledYear: req.user.year, dept: req.user.dept, semesters: Object.entries(sems).map(([sem, subjects]) => ({ sem: Number(sem), subjects })) });
+  res.json({
+    enrolledYear: req.user.year || (req.user.semester ? Math.ceil(req.user.semester / 2) : 1),
+    enrolledSem: req.user.semester || 1,
+    dept: req.user.dept,
+    semesters: Object.entries(sems).map(([sem, subjects]) => ({ sem: Number(sem), subjects }))
+  });
 });
 api.get('/curriculum', (req, res) => {
   let sem = Number(req.query.sem) || req.user.semester || 1;
   if (req.user.role === 'student') {
-    const studentYear = req.user.year || (req.user.semester ? Math.ceil(req.user.semester / 2) : 1);
-    const validSems = [studentYear * 2 - 1, studentYear * 2];
-    if (!validSems.includes(sem)) {
-      sem = req.user.semester || validSems[0];
-    }
+    sem = req.user.semester || 1;
   }
   const rc = ai.recordedCgpa(req.user.id);
   const subjects = db.prepare('SELECT * FROM subjects WHERE sem=?').all(sem).map((s) => {
@@ -393,7 +399,7 @@ api.get('/curriculum', (req, res) => {
     const g = m.endsem != null ? ai.grade(m.internal + m.endsem) : null;
     return { ...subjOut(s), internal: m.internal ?? null, grade: g?.grade ?? null };
   });
-  res.json({ cgpa: rc.cgpa, credits: rc.credits, backlogs: rc.backlogs, subjects });
+  res.json({ sem, cgpa: rc.cgpa, credits: rc.credits, backlogs: rc.backlogs, subjects });
 });
 api.get('/calendar', (req, res) => {
   const y = Number(req.query.year) || req.user?.year || (req.user?.semester ? Math.ceil(req.user.semester / 2) : 1);

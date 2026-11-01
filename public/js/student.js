@@ -425,30 +425,73 @@ window.loaders['group-chat'] = () => window.switchChatChannel(chatChannel);
 window.sendChatMessage = async () => { const t = val('chatInputMessage'); if (!t) return; $('chatInputMessage').value = ''; await act(() => api('/chat/' + chatChannel, { body: { message: t } }), false); };
 window.insertChatEmoji = (e) => { $('chatInputMessage').value += e; $('chatInputMessage').focus(); };
 
-// ---------- syllabus roadmap ----------
-let syl = null, sylYear = null;
+// ---------- syllabus (enrolled semester only) ----------
+let syl = null;
 window.loaders['syllabus-roadmap'] = async function () {
   syl = await api('/syllabus');
-  $('roadmapActiveYearBadge').textContent = 'Enrolled: Year ' + syl.enrolledYear; $('roadmapDeptLabel').textContent = syl.dept;
-  $('roadmapProgramTotal').textContent = syl.semesters.reduce((x, s) => x + s.subjects.reduce((y, z) => y + z.credits, 0), 0) + ' credits · 8 semesters';
-  filterSyllabusYear(sylYear ?? syl.enrolledYear); loadTimeline('all');
-};
-window.filterSyllabusYear = (y) => {
-  if (me && me.role === 'student') {
-    y = me.year || 1;
+  const userSem = (me && me.semester) ? me.semester : (syl.enrolledSem || 1);
+  const badge = $('roadmapActiveYearBadge');
+  if (badge) badge.textContent = 'Enrolled: Semester ' + userSem;
+  const dept = $('roadmapDeptLabel');
+  if (dept) dept.textContent = syl.dept || 'Engineering';
+
+  const totalCredits = (syl.semesters || []).reduce((acc, s) => acc + (s.subjects || []).reduce((c, x) => c + x.credits, 0), 0);
+  const progTotal = $('roadmapProgramTotal');
+  if (progTotal) progTotal.textContent = `${totalCredits} Credits · Semester ${userSem}`;
+
+  const container = $('syllabusSemestersContainer');
+  if (!container) return;
+
+  if (!syl.semesters || !syl.semesters.length) {
+    container.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-2xl border"><p class="text-sm font-semibold">No syllabus records found for Semester ${userSem}.</p></div>`;
+    return;
   }
-  sylYear = y; if (!syl) return;
-  const sems = y === 'all' ? syl.semesters : syl.semesters.filter((s) => s.sem === y * 2 - 1 || s.sem === y * 2);
-  [1, 2, 3, 4, 'all'].forEach((n) => { const b = $('tab-year-' + n); if (b) b.classList.toggle('bg-indigo-600', n === y), b?.classList.toggle('text-white', n === y); const nd = $('node-year-' + n); if (nd) nd.style.outline = n === y ? '2px solid #6366f1' : ''; });
-  $('roadmapFilterNotification').querySelector('span').textContent = y === 'all' ? 'Showing all 4 years.' : y === syl.enrolledYear ? 'Showing curriculum for your enrolled year.' : `Showing Year ${y} curriculum.`;
-  $('syllabusSemestersContainer').innerHTML = sems.map((s) => `<div class="bg-white border rounded-2xl p-5 mb-4"><h4 class="font-extrabold text-gray-800 mb-3">Semester ${s.sem} <span class="text-xs text-gray-400 font-bold">· ${s.subjects.reduce((x, z) => x + z.credits, 0)} credits</span></h4>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">${s.subjects.map((x) => `<button type="button" class="text-left border rounded-xl p-3 hover:border-indigo-400 transition" onclick="openSyllabusModal(${x.id})"><div class="flex justify-between"><span class="text-[10px] font-black text-indigo-600">${esc(x.code)}</span>${pill(x.category, x.category === 'Core' ? 'blue' : 'gray')}</div><p class="font-bold text-sm mt-1">${esc(x.name)}</p><p class="text-xs text-gray-400">${x.credits} credits · ${esc(x.faculty)}</p></button>`).join('')}</div></div>`).join('');
+
+  container.innerHTML = syl.semesters.map((s) => `
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5 gap-3">
+        <div>
+          <h4 class="font-extrabold text-slate-800 dark:text-white text-lg">Semester ${s.sem} Curriculum</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Official university accredited syllabus, modules, and evaluation schemes.</p>
+        </div>
+        <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 self-start sm:self-auto">
+          ${s.subjects.reduce((acc, z) => acc + z.credits, 0)} Total Credits · ${s.subjects.length} Courses
+        </span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        ${s.subjects.map((x) => `
+          <button type="button" class="text-left border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-indigo-500 hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/40 group cursor-pointer" onclick="openSyllabusModal(${x.id})">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900">${esc(x.code)}</span>
+              ${pill(x.category, x.category === 'Core' ? 'blue' : 'gray')}
+            </div>
+            <p class="font-bold text-sm text-slate-900 dark:text-white group-hover:text-indigo-500 transition line-clamp-1">${esc(x.name)}</p>
+            <div class="flex items-center justify-between mt-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200/50 dark:border-slate-700/50 pt-2">
+              <span>${x.credits} Credits</span>
+              <span>${x.modules ? x.modules.length : 5} Units <i class="fas fa-chevron-right ml-1 text-[10px] text-slate-400"></i></span>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
 };
+
+window.filterSyllabusYear = () => { if (window.loaders['syllabus-roadmap']) window.loaders['syllabus-roadmap'](); };
 window.openSyllabusModal = (id) => {
-  const sub = syl.semesters.flatMap((s) => s.subjects).find((x) => x.id === id); if (!sub) return;
-  $('modalSubCode').textContent = sub.code; $('modalSubCredits').textContent = sub.credits + ' Credits'; $('modalSubCategory').textContent = sub.category; $('modalSubTitle').textContent = sub.name;
-  $('modalSubPrereq').innerHTML = `<i class="fas fa-link mr-1"></i> Prerequisite: ${esc(sub.prereq)}`;
-  $('modalModulesList').innerHTML = sub.modules.map((m, i) => `<div class="flex gap-3 p-3 border rounded-xl mb-2 text-sm"><span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-black flex items-center justify-center shrink-0">${i + 1}</span><span>${esc(m)}</span></div>`).join('');
+  const sub = (syl?.semesters || []).flatMap((s) => s.subjects).find((x) => x.id === id);
+  if (!sub) return;
+  $('modalSubCode').textContent = sub.code;
+  $('modalSubCredits').textContent = sub.credits + ' Credits';
+  $('modalSubCategory').textContent = sub.category;
+  $('modalSubTitle').textContent = sub.name;
+  $('modalSubPrereq').innerHTML = `<i class="fas fa-link mr-1"></i> Prerequisite: ${esc(sub.prereq || 'None')}`;
+  $('modalModulesList').innerHTML = (sub.modules || []).map((m, i) => `
+    <div class="flex gap-3 p-3 border rounded-xl mb-2 text-sm bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700">
+      <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 font-black flex items-center justify-center shrink-0">${i + 1}</span>
+      <span class="text-slate-700 dark:text-slate-200">${esc(m)}</span>
+    </div>
+  `).join('');
   openModal('syllabusModal');
 };
 window.closeSyllabusModal = () => closeModal('syllabusModal');
@@ -1230,20 +1273,36 @@ window.printAcademicCalendar = function () {
 
 // ---------- curriculum / OBE ----------
 window.loaders.curriculum = window.loadCurriculum = async function () {
+  const userSem = (me && me.semester) ? me.semester : 1;
   const filter = $('curriculumSemFilter');
-  if (filter && me && me.role === 'student') {
-    const y = me.year || Math.ceil((me.semester || 1) / 2);
-    const semA = y * 2 - 1, semB = y * 2;
-    if (!filter.dataset.cohortConfigured || filter.dataset.cohortConfigured !== String(y)) {
-      filter.innerHTML = `<option value="${semA}">Semester ${semA} (Year ${y})</option><option value="${semB}">Semester ${semB} (Year ${y})</option>`;
-      filter.value = String(me.semester || semA);
-      filter.dataset.cohortConfigured = String(y);
+  const badge = $('curriculumCohortBadge');
+
+  if (me && me.role === 'student') {
+    if (filter) {
+      filter.innerHTML = `<option value="${userSem}">Semester ${userSem} (Enrolled)</option>`;
+      filter.value = String(userSem);
+      filter.classList.add('hidden');
     }
+    if (badge) {
+      badge.textContent = `Semester ${userSem} (Enrolled Cohort)`;
+      badge.classList.remove('hidden');
+    }
+  } else {
+    if (filter) {
+      filter.classList.remove('hidden');
+      if (!filter.options.length || filter.options.length <= 1) {
+        filter.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(s => `<option value="${s}">Semester ${s}</option>`).join('');
+      }
+    }
+    if (badge) badge.classList.add('hidden');
   }
-  const currentSem = (filter && filter.value) ? filter.value : (me?.semester || 1);
-  const c = await api('/curriculum?sem=' + currentSem);
-  $('curriculumCgpa').textContent = c.cgpa?.toFixed(2) ?? '--'; $('curriculumCredits').textContent = c.credits; $('curriculumBacklogs').textContent = c.backlogs;
-  $('curriculumGrid').innerHTML = c.subjects.map((s) => `<button type="button" class="text-left w-full border rounded-xl p-3 mb-2 hover:border-indigo-400" onclick='showOutcomes(${JSON.stringify(s).replace(/'/g, '&#39;')})'><b>${esc(s.code)} · ${esc(s.name)}</b><p class="text-xs text-gray-400">${s.credits} credits ${s.grade ? '· Grade ' + s.grade : s.internal != null ? '· Internal ' + s.internal + '/25' : ''}</p></button>`).join('');
+
+  const querySem = (me && me.role === 'student') ? userSem : (filter?.value || userSem);
+  const c = await api('/curriculum?sem=' + querySem);
+  $('curriculumCgpa').textContent = c.cgpa?.toFixed(2) ?? '--';
+  $('curriculumCredits').textContent = c.credits;
+  $('curriculumBacklogs').textContent = c.backlogs;
+  $('curriculumGrid').innerHTML = c.subjects.map((s) => `<button type="button" class="text-left w-full border rounded-xl p-3 mb-2 hover:border-indigo-400 transition" onclick='showOutcomes(${JSON.stringify(s).replace(/'/g, '&#39;')})'><b>${esc(s.code)} · ${esc(s.name)}</b><p class="text-xs text-gray-400">${s.credits} credits ${s.grade ? '· Grade ' + s.grade : s.internal != null ? '· Internal ' + s.internal + '/25' : ''}</p></button>`).join('');
 };
 window.showOutcomes = (s) => { $('obeOutcomesList').innerHTML = s.modules.map((m, i) => `<div class="text-sm p-2 border-b"><b>CO${i + 1}</b> Apply and analyse <i>${esc(m.toLowerCase())}</i> in practical engineering problems.</div>`).join(''); $('curriculumMaterialsHint').textContent = s.code; };
 

@@ -51,7 +51,7 @@ function runDomValidationTests() {
   const studentNavTargets = [...indexHtml.matchAll(/data-sec=["']([^"']+)["']/g)].map(x => x[1]);
   const unreachableStudentSections = studentSections.filter(s => !studentNavTargets.includes(s));
   assert.strictEqual(unreachableStudentSections.length, 0, `Unreachable student sections found: ${unreachableStudentSections.join(', ')}`);
-  assert.strictEqual(studentSections.length, 25, `Expected exactly 25 student sections, got ${studentSections.length}`);
+  assert.strictEqual(studentSections.length, 26, `Expected exactly 26 student sections, got ${studentSections.length}`);
 
   // Verify explicit removal of the 10 deprecated sections
   const removedSections = [

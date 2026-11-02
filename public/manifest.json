@@ -1,0 +1,26 @@
+{
+  "name": "Smart Campus AI - Student Management & Assistance",
+  "short_name": "SmartCampus",
+  "description": "AI-Powered Smart Campus Management and Student Assistance System",
+  "start_url": "/#/dashboard",
+  "display": "standalone",
+  "background_color": "#080d1a",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "assets/showcase/avatar-student.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/showcase/avatar-admin.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

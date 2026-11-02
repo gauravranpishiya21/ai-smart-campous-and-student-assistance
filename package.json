@@ -7,20 +7,27 @@
     "start": "node server/index.js",
     "seed": "node server/seed.js --reset",
     "build:css": "tailwindcss -c tailwind.config.js -i tailwind.input.css -o public/vendor/tailwind.css --minify",
-    "test": "node server/selftest.js"
+    "test": "node server/selftest.js",
+    "check:models": "node scripts/list-models.mjs",
+    "backup": "node scripts/backup.js",
+    "reset-db": "node scripts/reset-db.js"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13"
   },
   "license": "MIT",
   "dependencies": {
     "@google/genai": "^2.32.0",
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.6.0",
-    "socket.io": "^4.8.4"
+    "pino": "^10.4.0",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

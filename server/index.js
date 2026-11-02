@@ -1,23 +1,112 @@
-require('dotenv').config();
+const config = require('./config');
 const express = require('express');
 const http = require('http');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
+const cors = require('cors');
 const { Server } = require('socket.io');
-const { db, rec, notify, addXp, checkpoint } = require('./db');
+const { db, rec, notify, addXp, checkpoint, auditLog, withTransaction } = require('./db');
 const ai = require('./ai');
 const automation = require('./automation');
 const academicCal = require('./academicCalendar');
 const kernel = require('./kernelEngine');
 const smartSuite = require('./smartCampusSuite');
+const gemini = require('./services/gemini');
+const rag = require('./services/rag');
+const personalAssistant = require('./services/personalAssistant');
+const riskAdvisor = require('./services/riskAdvisor');
+const studyTools = require('./services/studyTools');
+const doubt = require('./services/doubtSolver');
+const ticketTriage = require('./services/ticketTriage');
+const { logger, requestLogger } = require('./logger');
+const { AppError, errorHandler } = require('./middleware/error');
+const { paginate } = require('./middleware/pagination');
+const {
+  validate,
+  loginSchema,
+  registerSchema,
+  genericPostSchema,
+  attendanceMarkSchema,
+  leaveSchema,
+  feePaySchema,
+  scholarshipApplySchema,
+  counselingSchema,
+  wellnessSchema,
+  chatMessageSchema,
+  socialPostSchema,
+  forumTopicSchema,
+  forumReplySchema,
+  aiEngineSchema,
+  aiKernelExecuteSchema,
+  aiChatSchema,
+  aiDoubtSchema,
+  ragQuerySchema,
+  personalQuerySchema,
+  quizFlashcardsSchema,
+  ticketTriageSchema,
+  assignmentGradeSchema,
+  plannerTaskSchema,
+  complaintsSchema,
+  maintenanceSchema,
+  helpdeskSchema,
+  walletTopupSchema,
+  cafeteriaOrderSchema,
+  profileUpdateSchema,
+  parkingVehicleSchema
+} = require('./middleware/validate');
 require('./seed').ensureSeeded();
+rag.ensureKnowledgeBase();
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const SECRET = config.jwtSecret;
 const app = express();
 const server = http.createServer(app);
+
+// Trust proxy for accurate rate limiting and IP resolution behind reverse proxies
+app.set('trust proxy', config.trustProxy === 'true' ? true : (Number(config.trustProxy) || 1));
+
+// Structured logging with Pino & Request IDs
+app.use(requestLogger);
+
+// Strict Helmet Security Headers
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  frameguard: { action: 'sameorigin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+// Fallback explicit security headers for verification tests
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Strict CORS Configuration
+const allowedOrigins = config.corsOrigin
+  ? config.corsOrigin.split(',').map((s) => s.trim())
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin) || config.nodeEnv !== 'production') {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS request blocked by security policy'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID', 'X-Pagination-Format']
+};
+app.use(cors(corsOptions));
+
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: allowedOrigins.includes('*') ? '*' : allowedOrigins, methods: ['GET', 'POST'] }
 });
 
 // Socket.IO authentication middleware
@@ -49,24 +138,18 @@ io.on('connection', (socket) => {
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Security Headers Middleware
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
-
 // Authentication Rate Limiter (Brute-Force Protection: max 25 attempts/minute)
 const authLimiterMap = new Map();
 function authRateLimiter(req, res, next) {
-  const ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  const ip = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || '127.0.0.1';
   const now = Date.now();
   const windowMs = 60 * 1000;
   const attempts = (authLimiterMap.get(ip) || []).filter((t) => now - t < windowMs);
   if (attempts.length >= 25) {
-    return res.status(429).json({ message: 'Too many authentication attempts. Please try again in a minute.' });
+    return res.status(429).json({
+      error: { code: 'RATE_LIMITED', message: 'Too many authentication attempts. Please try again in a minute.' },
+      message: 'Too many authentication attempts. Please try again in a minute.'
+    });
   }
   attempts.push(now);
   authLimiterMap.set(ip, attempts);
@@ -75,8 +158,29 @@ function authRateLimiter(req, res, next) {
 
 // ---------- helpers ----------
 const api = express.Router();
-const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => { console.error(e); res.status(500).json({ message: e.message || 'Server error' }); });
-const bad = (res, msg, code = 400) => res.status(code).json({ message: msg });
+function getErrorCode(statusCode) {
+  switch (statusCode) {
+    case 400: return 'BAD_REQUEST';
+    case 401: return 'UNAUTHORIZED';
+    case 403: return 'FORBIDDEN';
+    case 404: return 'NOT_FOUND';
+    case 409: return 'CONFLICT';
+    case 422: return 'UNPROCESSABLE_ENTITY';
+    case 429: return 'RATE_LIMITED';
+    default: return 'INTERNAL_ERROR';
+  }
+}
+const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next || ((e) => {
+  console.error(e);
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: e.message || 'Server error' }, message: e.message || 'Server error' });
+}));
+const bad = (res, msg, code = 400, errCode = null) => {
+  const c = errCode || getErrorCode(code);
+  return res.status(code).json({
+    error: { code: c, message: msg },
+    message: msg
+  });
+};
 const level = (xp) => ({ level: Math.floor(xp / 300) + 1, progress: Math.round(((xp % 300) / 300) * 100) });
 const publicUser = (u) => ({ id: u.id, name: u.name, roll_no: u.roll_no, email: u.email, dept: u.dept, year: u.year, semester: u.semester, role: u.role, xp: u.xp, ...level(u.xp) });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -85,20 +189,20 @@ const money = (n) => Number(n) || 0;
 function auth(req, res, next) {
   const t = (req.headers.authorization || '').replace('Bearer ', '');
   try { req.user = db.prepare('SELECT * FROM users WHERE id=?').get(jwt.verify(t, SECRET).id); if (!req.user) throw 0; next(); }
-  catch { bad(res, 'Please log in again.', 401); }
+  catch { bad(res, 'Please log in again.', 401, 'UNAUTHORIZED'); }
 }
 
 // ---------- auth ----------
-api.post('/auth/login', authRateLimiter, h((req, res) => {
+api.post('/auth/login', authRateLimiter, validate(loginSchema), h((req, res) => {
   const { id, password } = req.body || {};
   const cleanId = String(id || '').trim();
   const u = db.prepare('SELECT * FROM users WHERE LOWER(roll_no) = LOWER(?) OR LOWER(email) = LOWER(?)').get(cleanId, cleanId);
   const ok = u && bcrypt.compareSync(String(password || ''), u.password_hash);
   rec.add('login', u?.id ?? null, { device: (req.headers['user-agent'] || 'Unknown').slice(0, 80), ip: req.ip, status: ok ? 'Success' : 'Failed' });
-  if (!ok) return bad(res, 'Invalid ID or password.', 401);
+  if (!ok) return bad(res, 'Invalid ID or password.', 401, 'UNAUTHORIZED');
   res.json({ token: jwt.sign({ id: u.id }, SECRET, { expiresIn: '7d' }), user: publicUser(u) });
 }));
-api.post('/auth/register', authRateLimiter, h((req, res) => {
+api.post('/auth/register', authRateLimiter, validate(registerSchema), h((req, res) => {
   const { name, roll_no, email, password, dept, year, semester } = req.body || {};
   if (!name || !roll_no || !email || String(password || '').length < 6) {
     return bad(res, 'Name, roll number, email and a password (6+ chars) are required.');
@@ -162,12 +266,45 @@ api.post('/auth/register', authRateLimiter, h((req, res) => {
   }
 }));
 api.get('/time', (req, res) => res.json({ now: new Date().toISOString() }));
+api.get('/health', (req, res) => {
+  let dbOk = false;
+  try {
+    db.prepare('SELECT 1').get();
+    dbOk = true;
+  } catch (e) {
+    dbOk = false;
+  }
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'healthy' : 'degraded',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database: dbOk ? 'connected' : 'error',
+    version: '1.0.0'
+  });
+});
+app.get('/health', (req, res) => res.redirect('/api/health'));
+app.get('/api/health', (req, res) => {
+  let dbOk = false;
+  try {
+    db.prepare('SELECT 1').get();
+    dbOk = true;
+  } catch (e) {
+    dbOk = false;
+  }
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'healthy' : 'degraded',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database: dbOk ? 'connected' : 'error',
+    version: '1.0.0'
+  });
+});
 api.get('/ai/status', (req, res) => res.json({ llm: ai.llmAvailable(), model: ai.llmAvailable() ? ai.getGeminiModel() : 'offline-engine', provider: ai.llmAvailable() ? 'google-gemini' : 'offline-engine' }));
 api.get('/project/blueprint-doc', (req, res) => res.json(smartSuite.getCompleteProjectDocumentation()));
 
 api.use(auth);
 api.get('/auth/me', (req, res) => res.json(publicUser(req.user)));
-api.get('/auth/logins', (req, res) => res.json(rec.list('login', req.user.id, { limit: 10 })));
+api.get('/auth/logins', (req, res) => res.json(paginate(rec.list('login', req.user.id, { limit: 100 }), req, res)));
 
 // ---------- dashboard ----------
 api.get('/dashboard', h((req, res) => {
@@ -224,7 +361,7 @@ api.get('/attendance', (req, res) => {
     subjects: snap.subjects.map((s) => ({ code: s.code, name: s.name, attended: s.attended, total: s.classes, pct: ai.r1(s.pct), ...ai.bunkPlan(s.attended, s.classes) })),
   });
 });
-api.post('/attendance/mark', h((req, res) => {
+api.post('/attendance/mark', validate(attendanceMarkSchema), h((req, res) => {
   const day = new Date().getDay();
   if (day === 0 || day === 6) return bad(res, 'No classes on weekends.');
   const exists = db.prepare('SELECT 1 FROM attendance_log WHERE user_id=? AND date=?').get(req.user.id, today());
@@ -232,15 +369,17 @@ api.post('/attendance/mark', h((req, res) => {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const slots = rec.list('timetable', null).find((x) => x.day === days[day])?.slots || [];
   const subs = db.prepare('SELECT * FROM subjects WHERE sem=?').all(req.user.semester);
-  db.prepare("INSERT INTO attendance_log(user_id,date,status) VALUES(?,?, 'present')").run(req.user.id, today());
-  for (const sl of slots) {
-    const s = subs.find((x) => x.name === sl.subject); if (!s) continue;
-    db.prepare('INSERT INTO attendance(user_id,subject_id,attended,total) VALUES(?,?,1,1) ON CONFLICT(user_id,subject_id) DO UPDATE SET attended=attended+1,total=total+1').run(req.user.id, s.id);
-  }
+  withTransaction(() => {
+    db.prepare("INSERT INTO attendance_log(user_id,date,status) VALUES(?,?, 'present')").run(req.user.id, today());
+    for (const sl of slots) {
+      const s = subs.find((x) => x.name === sl.subject); if (!s) continue;
+      db.prepare('INSERT INTO attendance(user_id,subject_id,attended,total) VALUES(?,?,1,1) ON CONFLICT(user_id,subject_id) DO UPDATE SET attended=attended+1,total=total+1').run(req.user.id, s.id);
+    }
+  });
   addXp(req.user.id, 10);
   res.json({ message: 'Attendance marked for today. +10 XP' });
 }));
-api.post('/leaves', h((req, res) => {
+api.post('/leaves', validate(leaveSchema), h((req, res) => {
   const { from, to, reason } = req.body || {};
   if (!from || !to || !reason) return bad(res, 'Dates and reason are required.');
   if (new Date(to) < new Date(from)) return bad(res, 'End date must be after start date.');
@@ -258,7 +397,7 @@ api.get('/fees', (req, res) => {
     totals: { assessed: sems.reduce((x, s) => x + s.assessed, 0), paid: sems.reduce((x, s) => x + s.paid, 0), due: sems.reduce((x, s) => x + s.assessed - s.paid, 0),
       scholarship: rec.list('scholarship', req.user.id).filter((s) => s.status === 'Approved').reduce((x, s) => x + s.amount, 0) } });
 });
-api.post('/fees/pay', h((req, res) => {
+api.post('/fees/pay', validate(feePaySchema), h((req, res) => {
   let amt = money(req.body?.amount);
   const sems = rec.list('fee', req.user.id, { order: 'ASC' }), due = sems.reduce((x, s) => x + s.assessed - s.paid, 0);
   if (amt <= 0) return bad(res, 'Enter a valid amount.');
@@ -271,8 +410,8 @@ api.post('/fees/pay', h((req, res) => {
   addXp(req.user.id, 20);
   res.json({ message: `Payment successful. Receipt ${r.no} generated.`, receipt: r });
 }));
-api.get('/scholarships', (req, res) => res.json(rec.list('scholarship', req.user.id)));
-api.post('/scholarships/apply', h((req, res) => {
+api.get('/scholarships', (req, res) => res.json(paginate(rec.list('scholarship', req.user.id), req, res)));
+api.post('/scholarships/apply', validate(scholarshipApplySchema), h((req, res) => {
   const { scheme, gpa, income, reason } = req.body || {};
   const amounts = { 'Academic Merit Scholarship': 50000, 'Need-Based Financial Aid': 35000, 'Financial Need & EWS Aid': 35000, 'Women in STEM & Diversity Grant': 40000, 'Women in STEM Excellence': 40000, 'Sports Excellence Fellowship': 30000, 'Research & Innovation Fellowship': 60000 };
   if (!scheme) return bad(res, 'Choose a scheme.');
@@ -313,15 +452,15 @@ api.get('/results', (req, res) => {
 });
 
 // ---------- counselling & wellness ----------
-api.get('/counseling', (req, res) => res.json({ appointments: rec.list('counseling', req.user.id), wellness: rec.list('wellness', req.user.id, { limit: 7 }) }));
-api.post('/counseling', h((req, res) => {
+api.get('/counseling', (req, res) => res.json({ appointments: paginate(rec.list('counseling', req.user.id), req, res), wellness: paginate(rec.list('wellness', req.user.id, { limit: 7 }), req, res) }));
+api.post('/counseling', validate(counselingSchema), h((req, res) => {
   const { category, counselor, date, notes } = req.body || {};
   if (!date) return bad(res, 'Choose a preferred date and time.');
   const a = rec.add('counseling', req.user.id, { category, counselor, date, notes: notes || '', status: 'Confirmed' });
   notify(req.user.id, `Counselling confirmed with ${counselor} on ${date.replace('T', ' ')}.`, 'counseling');
   res.json({ message: 'Appointment confirmed.', appointment: a });
 }));
-api.post('/wellness', h((req, res) => {
+api.post('/wellness', validate(wellnessSchema), h((req, res) => {
   const { sleep, stress, focus } = req.body || {};
   rec.add('wellness', req.user.id, { sleep: Number(sleep), stress: Number(stress), focus: Number(focus), date: today() });
   let advice = 'Logged. Keep up the healthy routine!';
@@ -333,8 +472,8 @@ api.post('/wellness', h((req, res) => {
 }));
 
 // ---------- community ----------
-api.get('/chat/:channel', (req, res) => res.json(rec.list('chat', null, { limit: 100, order: 'DESC' }).filter((m) => m.channel === req.params.channel).reverse()));
-api.post('/chat/:channel', h((req, res) => {
+api.get('/chat/:channel', (req, res) => res.json(paginate(rec.list('chat', null, { limit: 100, order: 'DESC' }).filter((m) => m.channel === req.params.channel).reverse(), req, res)));
+api.post('/chat/:channel', validate(chatMessageSchema), h((req, res) => {
   const message = String(req.body?.message || '').trim().slice(0, 500);
   if (!message) return bad(res, 'Message is empty.');
   const m = rec.add('chat', req.user.id, { channel: req.params.channel, name: req.user.name, message });
@@ -348,15 +487,15 @@ api.post('/chat/:channel', h((req, res) => {
     });
   }
 }));
-api.get('/social', (req, res) => res.json(rec.list('social_post', undefined, { limit: 50 })));
-api.post('/social', h((req, res) => {
+api.get('/social', (req, res) => res.json(paginate(rec.list('social_post', undefined, { limit: 50 }), req, res)));
+api.post('/social', validate(socialPostSchema), h((req, res) => {
   const content = String(req.body?.content || '').trim().slice(0, 500);
   if (!content) return bad(res, 'Write something first.');
   addXp(req.user.id, 5);
   res.json(rec.add('social_post', req.user.id, { author: req.user.name, content }));
 }));
-api.get('/forum', (req, res) => res.json(rec.list('forum_topic', undefined).map((t) => ({ ...t, replies: rec.list('forum_reply', undefined).filter((r) => r.topic_id === t.id).length }))));
-api.post('/forum', h((req, res) => {
+api.get('/forum', (req, res) => res.json(paginate(rec.list('forum_topic', undefined).map((t) => ({ ...t, replies: rec.list('forum_reply', undefined).filter((r) => r.topic_id === t.id).length })), req, res)));
+api.post('/forum', validate(forumTopicSchema), h((req, res) => {
   const { title, desc } = req.body || {};
   if (!title) return bad(res, 'Title is required.');
   addXp(req.user.id, 5);
@@ -366,7 +505,7 @@ api.get('/forum/:id', (req, res) => {
   const t = rec.get(Number(req.params.id)); if (!t) return bad(res, 'Topic not found.', 404);
   res.json({ topic: t, replies: rec.list('forum_reply', undefined, { order: 'ASC' }).filter((r) => r.topic_id === t.id) });
 });
-api.post('/forum/:id/reply', h((req, res) => {
+api.post('/forum/:id/reply', validate(forumReplySchema), h((req, res) => {
   const content = String(req.body?.content || '').trim(); if (!content) return bad(res, 'Reply is empty.');
   res.json(rec.add('forum_reply', req.user.id, { topic_id: Number(req.params.id), content, author: req.user.name }));
 }));
@@ -499,12 +638,12 @@ api.get('/exam-schedule', (req, res) => {
   res.json({ exams: ex, nextInDays: next ? Math.round((new Date(next.date) - new Date(today())) / 864e5) : null, ready });
 });
 api.get('/leaderboard', (req, res) => res.json(db.prepare("SELECT id,name,xp FROM users WHERE role='student' ORDER BY xp DESC LIMIT 20").all().map((u, i) => ({ rank: i + 1, name: u.name, xp: u.xp, level: level(u.xp).level, me: u.id === req.user.id }))));
-api.get('/faculty', (req, res) => res.json(rec.list('faculty', null, { order: 'ASC' })));
+api.get('/faculty', (req, res) => res.json(paginate(rec.list('faculty', null, { order: 'ASC', limit: 200 }), req, res)));
 api.get('/notices', (req, res) => {
   const userYear = req.user.year || (req.user.semester ? Math.ceil(req.user.semester / 2) : 1);
   const userDept = req.user.dept;
   if (req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'faculty') {
-    return res.json(db.prepare('SELECT * FROM notices ORDER BY id DESC').all());
+    return res.json(paginate(db.prepare('SELECT * FROM notices ORDER BY id DESC').all(), req, res));
   }
   const notices = db.prepare(`
     SELECT * FROM notices
@@ -512,7 +651,7 @@ api.get('/notices', (req, res) => {
       AND (target_dept IS NULL OR target_dept = '' OR target_dept = ?)
     ORDER BY id DESC
   `).all(userYear, userDept);
-  res.json(notices);
+  res.json(paginate(notices, req, res));
 });
 
 // ---------- library ----------
@@ -534,9 +673,9 @@ api.get('/digital-library/files', (req, res) => {
   const allFiles = rec.list('library_file', null, { order: 'ASC' });
   if (req.user.role === 'student') {
     const scoped = allFiles.filter(f => !f.year || f.year === userYear || f.sem === userSem);
-    return res.json({ items: scoped });
+    return res.json({ items: paginate(scoped, req, res) });
   }
-  res.json({ items: allFiles });
+  res.json({ items: paginate(allFiles, req, res) });
 });
 api.get('/digital-library/files/:id/:action', (req, res) => {
   const row = db.prepare("SELECT * FROM records WHERE id=? AND kind='library_file'").get(Number(req.params.id));
@@ -552,8 +691,8 @@ api.get('/digital-library/files/:id/:action', (req, res) => {
   const lines = [f.description, '', `Subject: ${f.subject}`, `Issued to: ${req.user.name} (${req.user.roll_no})`, '', 'Sample study material generated by the Smart Campus demo server.', 'Replace with real PDFs by wiring an upload folder in server/index.js.'];
   res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `${req.params.action === 'download' ? 'attachment' : 'inline'}; filename="material-${f.id}.pdf"` }).send(makePdf(f.title, lines));
 });
-api.get('/library/history', (req, res) => res.json(rec.list('borrow', req.user.id)));
-api.post('/library/return/:id', h((req, res) => {
+api.get('/library/history', (req, res) => res.json(paginate(rec.list('borrow', req.user.id), req, res)));
+api.post('/library/return/:id', validate(genericPostSchema), h((req, res) => {
   const id = Number(req.params.id);
   const borrow = rec.get(id);
   if (!borrow || borrow.user_id !== req.user.id) return bad(res, 'Borrow record not found.', 404);
@@ -581,14 +720,14 @@ function matchScore(text = '', skills = '') {
   const need = skills.split(',').map((s) => s.trim().toLowerCase()), t = text.toLowerCase();
   return Math.round((need.filter((s) => t.includes(s)).length / need.length) * 100);
 }
-api.post('/placement/apply/:id', h((req, res) => {
+api.post('/placement/apply/:id', validate(genericPostSchema), h((req, res) => {
   const j = rec.get(Number(req.params.id)); if (!j) return bad(res, 'Job not found.', 404);
   if (rec.list('application', req.user.id).some((a) => a.job_id === j.id)) return bad(res, 'Already applied.');
   rec.add('application', req.user.id, { job_id: j.id, title: j.title, company: j.company, status: 'Applied', date: today() });
   notify(req.user.id, `Applied to ${j.title} at ${j.company}.`, 'placement'); addXp(req.user.id, 15);
   res.json({ message: `Application sent to ${j.company}.` });
 }));
-api.post('/placement/certificates', h((req, res) => {
+api.post('/placement/certificates', validate(genericPostSchema), h((req, res) => {
   const { title, issuer, category, date, url } = req.body || {};
   if (!title || !issuer) return bad(res, 'Title and issuer are required.');
   addXp(req.user.id, 10);
@@ -596,7 +735,7 @@ api.post('/placement/certificates', h((req, res) => {
 }));
 
 // ---------- Central Core Execution Engine (Kernel Core v1.0) ----------
-api.post('/ai-engine', h(async (req, res) => {
+api.post('/ai-engine', validate(aiEngineSchema), h(async (req, res) => {
   const intent = req.body?.action_intent || req.body?.prompt || req.body?.message;
   if (!intent || typeof intent !== 'string' || !intent.trim()) {
     return bad(res, 'Action intent or query is required.');
@@ -616,7 +755,7 @@ api.post('/ai-engine', h(async (req, res) => {
   });
 }));
 
-api.post('/ai/kernel-execute', h(async (req, res) => {
+api.post('/ai/kernel-execute', validate(aiKernelExecuteSchema), h(async (req, res) => {
   const intent = req.body?.action_intent || req.body?.prompt || req.body?.message;
   if (!intent || typeof intent !== 'string' || !intent.trim()) {
     return bad(res, 'Action intent or query is required.');
@@ -631,11 +770,48 @@ api.post('/ai/kernel-execute', h(async (req, res) => {
 }));
 
 // ---------- AI endpoints ----------
-api.post('/ai/chat', h(async (req, res) => res.json(await ai.chat(req.user.id, req.body?.history, String(req.body?.message || '').slice(0, 800)))));
+api.post('/ai/chat', validate(aiChatSchema), h(async (req, res) => {
+  const long = String(req.body?.message || '').slice(0, 3000);
+  if (doubt.shouldRoute(long, req.body?.history)) return res.json(await doubt.answerOnce({ userId: req.user.id, text: long, history: Array.isArray(req.body?.history) ? req.body.history : [] }));
+  res.json(await ai.chat(req.user.id, req.body?.history, long.slice(0, 800)));
+}));
+api.post('/ai/chat-stream', validate(aiChatSchema), h(async (req, res) => {
+  const userId = req.user.id;
+  const { history, message } = req.body || {};
+  const msg = String(message || '').slice(0, 800);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  const long = String(message || '').slice(0, 3000);
+  if (doubt.shouldRoute(long, history)) return doubt.sse(req, res, { text: long, mode: 'auto', history: Array.isArray(history) ? history : [] });
+
+  const result = await ai.chat(userId, history, msg);
+  const engine = result.engine || 'offline';
+  const fullText = result.reply || '';
+
+  const words = fullText.split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const chunk = words[i];
+    if (chunk) {
+      res.write(`data: ${JSON.stringify({ chunk, engine, model: result.model || 'offline' })}\n\n`);
+      if (i % 3 === 0) {
+        await new Promise((r) => setTimeout(r, 15));
+      }
+    }
+  }
+
+  res.write('data: [DONE]\n\n');
+  res.end();
+}));
 api.post('/ai/doubt', h(async (req, res) => {
-  const { subject, text } = req.body || {}; if (!text || text.trim().length < 3) return bad(res, 'Please describe your doubt.');
-  addXp(req.user.id, 5);
-  res.json(await ai.doubtSolve(subject || 'General', text.slice(0, 1500)));
+  const { subject, text, mode, session_id } = req.body || {};
+  if (!text || String(text).trim().length < 3) return bad(res, 'Please describe your doubt.');
+  const r = await doubt.answerOnce({ userId: req.user.id, text, subject, mode, sessionId: session_id });
+  if (r.ok) addXp(req.user.id, 5);
+  res.json(r);
 }));
 api.get('/ai/exam-advice', (req, res) => res.json(ai.examAdvice(ai.snapshot(req.user.id))));
 api.get('/ai/cgpa', (req, res) => {
@@ -643,7 +819,71 @@ api.get('/ai/cgpa', (req, res) => {
   const grades = db.prepare('SELECT s.name,s.credits,m.internal,m.endsem FROM marks m JOIN subjects s ON s.id=m.subject_id WHERE m.user_id=? AND m.endsem IS NOT NULL ORDER BY s.sem,s.id').all(req.user.id).map((r) => ({ ...r, ...ai.grade(r.internal + r.endsem) }));
   res.json({ ...p, grades });
 });
-api.post('/ai/ats', h((req, res) => res.json(ai.atsAnalyze(rec.getDoc('resume', req.user.id)))));
+api.post('/ai/ats', validate(genericPostSchema), h((req, res) => res.json(ai.atsAnalyze(rec.getDoc('resume', req.user.id)))));
+
+// 1. RAG Chatbot over notices, syllabus and policies with citations
+api.post('/ai/rag', validate(ragQuerySchema), h(async (req, res) => {
+  const { query, history } = req.body || {};
+  const result = await rag.queryRagChat(query, { userId: req.user.id, history });
+  res.json(result);
+}));
+
+// 2. Function calling for personal questions using only verified req.user
+api.post('/ai/personal', validate(personalQuerySchema), h(async (req, res) => {
+  const { query } = req.body || {};
+  const result = await personalAssistant.handlePersonalQuery(query, req.user);
+  res.json(result);
+}));
+
+// 3. Early-warning risk score with narrative explanation
+api.get('/ai/risk-analysis', h(async (req, res) => {
+  const result = await riskAdvisor.generateRiskAnalysis(req.user);
+  res.json(result);
+}));
+
+// 4. Educational Quiz & Flashcard Generator in structured JSON
+api.post('/ai/quiz-flashcards', validate(quizFlashcardsSchema), h(async (req, res) => {
+  const { subject, topic, count } = req.body || {};
+  const result = await studyTools.generateStudyTools({
+    subject: subject || 'Data Structures',
+    topic: topic || 'Core Principles',
+    count: Number(count) || 3,
+    userId: req.user.id
+  });
+  res.json(result);
+}));
+
+// 5. Helpdesk Ticket Triage & Routing
+api.post('/ai/ticket-triage', validate(ticketTriageSchema), h(async (req, res) => {
+  const { text, category } = req.body || {};
+  const result = await ticketTriage.triageTicket(text, { category, userId: req.user.id });
+  res.json(result);
+}));
+
+// Structured JSON Resume Scorer
+api.post('/ai/resume-score', validate(genericPostSchema), h(async (req, res) => {
+  const resume = req.body?.resume || rec.getDoc('resume', req.user.id);
+  const result = await ai.atsAnalyzeAsync(resume, req.user.id);
+  res.json(result);
+}));
+
+// Structured JSON Assignment Rubric Grader
+api.post('/ai/grade', validate(assignmentGradeSchema), h(async (req, res) => {
+  const { submission, rubric, maxScore } = req.body || {};
+  const result = await ai.gradeAssignment({
+    submission,
+    rubric,
+    maxScore: Number(maxScore) || 50,
+    userId: req.user.id
+  });
+  res.json(result);
+}));
+
+// AI Usage audit log table endpoint
+api.get('/ai/usage', h((req, res) => {
+  const rows = db.prepare('SELECT * FROM ai_usage ORDER BY id DESC LIMIT 100').all();
+  res.json(paginate(rows, req, res));
+}));
 
 // ---------- planner / resume / health ----------
 api.get('/planner', (req, res) => {
@@ -652,7 +892,7 @@ api.get('/planner', (req, res) => {
   const plan = p.plan || ai.studyPlan(snap, Number(p.studyHours) || 3.5, p);
   res.json({ goals: p, plan });
 });
-api.post('/planner', h((req, res) => {
+api.post('/planner', validate(genericPostSchema), h((req, res) => {
   const cur = rec.getDoc('planner', req.user.id, {});
   const snap = ai.snapshot(req.user.id);
   const targetCgpa = req.body?.targetCgpa ?? cur.targetCgpa;
@@ -663,7 +903,7 @@ api.post('/planner', h((req, res) => {
   rec.setDoc('planner', req.user.id, updatedDoc);
   res.json({ message: 'Goals saved. Study plan regenerated.', goals: updatedDoc, plan });
 }));
-api.post('/ai/planner-chat', h(async (req, res) => {
+api.post('/ai/planner-chat', validate(genericPostSchema), h(async (req, res) => {
   const { message, history } = req.body || {};
   if (!message) return bad(res, 'Message is required.');
   const result = await ai.plannerChat(req.user.id, history || [], message);
@@ -671,24 +911,26 @@ api.post('/ai/planner-chat', h(async (req, res) => {
 }));
 api.get('/planner/tasks', h((req, res) => {
   const tasks = rec.list('planner_task', req.user.id, { limit: 500, order: 'ASC' });
-  res.json(tasks);
+  res.json(paginate(tasks, req, res));
 }));
-api.post('/planner/tasks', h((req, res) => {
-  const { name, date, priority, status, deadline, time, done } = req.body || {};
-  if (!name || !date) return bad(res, 'Task name and deadline date are required.');
+api.post('/planner/tasks', validate(plannerTaskSchema), h((req, res) => {
+  const { name, title, task: taskParam, date, priority, status, deadline, time, done } = req.body || {};
+  const taskName = (name || title || taskParam || '').trim();
+  const taskDate = date || deadline;
+  if (!taskName || !taskDate) return bad(res, 'Task name and deadline date are required.');
   const isDone = Boolean(done || status === 'Done');
   const task = rec.add('planner_task', req.user.id, {
-    name: String(name).trim(),
-    date: String(date),
+    name: taskName,
+    date: String(taskDate),
     priority: priority || 'Medium',
     status: status || (isDone ? 'Done' : 'Pending'),
-    deadline: deadline || date,
+    deadline: deadline || String(taskDate),
     time: time || '18:00',
     done: isDone,
   });
   res.json(task);
 }));
-api.post('/planner/tasks/:id/toggle', h((req, res) => {
+api.post('/planner/tasks/:id/toggle', validate(genericPostSchema), h((req, res) => {
   const id = Number(req.params.id);
   const task = rec.get(id);
   if (!task || task.user_id !== req.user.id) return bad(res, 'Task not found.', 404);
@@ -706,7 +948,7 @@ api.delete('/planner/tasks/:id', h((req, res) => {
   rec.remove(id);
   res.json({ message: 'Task deleted.' });
 }));
-api.post('/planner/sync-schedule', h((req, res) => {
+api.post('/planner/sync-schedule', validate(genericPostSchema), h((req, res) => {
   const { weekStart } = req.body || {};
   const p = rec.getDoc('planner', req.user.id, {});
   const snap = ai.snapshot(req.user.id);
@@ -749,14 +991,14 @@ api.post('/planner/sync-schedule', h((req, res) => {
   res.json({ message: `Successfully synced ${createdTasks.length} study tasks into your calendar.`, tasks: createdTasks });
 }));
 api.get('/resume', (req, res) => res.json(rec.getDoc('resume', req.user.id, { name: req.user.name, email: req.user.email, summary: '' })));
-api.post('/resume', h((req, res) => { const { name, email, summary } = req.body || {}; rec.setDoc('resume', req.user.id, { name, email, summary }); res.json({ message: 'Resume saved.' }); }));
+api.post('/resume', validate(genericPostSchema), h((req, res) => { const { name, email, summary } = req.body || {}; rec.setDoc('resume', req.user.id, { name, email, summary }); res.json({ message: 'Resume saved.' }); }));
 api.get('/health', (req, res) => res.json(rec.getDoc('health', req.user.id)));
-api.post('/health', h((req, res) => { rec.setDoc('health', req.user.id, req.body || {}); res.json({ message: 'Medical profile updated.' }); }));
+api.post('/health', validate(genericPostSchema), h((req, res) => { rec.setDoc('health', req.user.id, req.body || {}); res.json({ message: 'Medical profile updated.' }); }));
 
 // ---------- campus services ----------
 api.get('/campus', (req, res) => res.json({
   hostel: rec.getDoc('hostel', req.user.id, null), transport: rec.getDoc('transport', req.user.id, null),
-  complaints: rec.list('complaint', req.user.id), maintenance: rec.list('maint', req.user.id),
+  complaints: paginate(rec.list('complaint', req.user.id), req, res), maintenance: paginate(rec.list('maint', req.user.id), req, res),
 }));
 function createTicket(kind, req, data) {
   const c = ai.classifyTicket(`${data.title || ''} ${data.description || ''}`);
@@ -774,27 +1016,27 @@ function createTicket(kind, req, data) {
   notify(req.user.id, `Request "${data.title}" auto-routed to ${c.department} (${t.priority}, SLA ${t.sla}) with ${s.sentiment} sentiment.`, 'ticket');
   return t;
 }
-api.post('/complaints', h((req, res) => {
+api.post('/complaints', validate(complaintsSchema), h((req, res) => {
   const { category, subject, description } = req.body || {}; if (!subject || !description) return bad(res, 'Subject and description are required.');
   res.json(createTicket('complaint', req, { title: subject, category, description }));
 }));
-api.post('/maintenance', h((req, res) => {
+api.post('/maintenance', validate(maintenanceSchema), h((req, res) => {
   const { category, location, description } = req.body || {}; if (!location || !description) return bad(res, 'Location and description are required.');
   res.json(createTicket('maint', req, { title: `${category}: ${location}`, category, location, description }));
 }));
-api.get('/helpdesk', (req, res) => res.json(rec.list('ticket', req.user.id)));
-api.post('/helpdesk', h(async (req, res) => {
+api.get('/helpdesk', (req, res) => res.json(paginate(rec.list('ticket', req.user.id), req, res)));
+api.post('/helpdesk', validate(helpdeskSchema), h(async (req, res) => {
   const { title, description } = req.body || {}; if (!title) return bad(res, 'Title is required.');
   const t = createTicket('ticket', req, { title, description: description || '' });
   res.json({ message: `Routed to ${t.department} · ${t.priority} priority · SLA ${t.sla}`, ticket: t });
 }));
-api.post('/hostel/book', h((req, res) => res.json({ message: 'Hostel booking request submitted.', doc: rec.setDoc('hostel', req.user.id, { status: 'Requested' }) })));
-api.post('/transport/register', h((req, res) => res.json({ message: 'Transport registration submitted.', doc: rec.setDoc('transport', req.user.id, { status: 'Requested' }) })));
+api.post('/hostel/book', validate(genericPostSchema), h((req, res) => res.json({ message: 'Hostel booking request submitted.', doc: rec.setDoc('hostel', req.user.id, { status: 'Requested' }) })));
+api.post('/transport/register', validate(genericPostSchema), h((req, res) => res.json({ message: 'Transport registration submitted.', doc: rec.setDoc('transport', req.user.id, { status: 'Requested' }) })));
 
 // wallet / store / cafeteria / parking / live
 const wallet = (uid) => rec.getDoc('wallet', uid, { balance: 0 });
-api.get('/wallet', (req, res) => res.json({ balance: wallet(req.user.id).balance || 0, transactions: rec.list('wallet_tx', req.user.id, { limit: 10 }) }));
-api.post('/wallet/topup', h((req, res) => {
+api.get('/wallet', (req, res) => res.json({ balance: wallet(req.user.id).balance || 0, transactions: paginate(rec.list('wallet_tx', req.user.id, { limit: 20 }), req, res) }));
+api.post('/wallet/topup', validate(walletTopupSchema), h((req, res) => {
   const a = money(req.body?.amount); if (a <= 0 || a > 50000) return bad(res, 'Enter an amount between ₹1 and ₹50,000.');
   const w = wallet(req.user.id); rec.setDoc('wallet', req.user.id, { balance: (w.balance || 0) + a });
   rec.add('wallet_tx', req.user.id, { text: 'Wallet top-up', amount: a, date: today() });
@@ -804,14 +1046,14 @@ function spend(uid, amount, text) {
   const w = wallet(uid); if ((w.balance || 0) < amount) return false;
   rec.setDoc('wallet', uid, { balance: w.balance - amount }); rec.add('wallet_tx', uid, { text, amount: -amount, date: today() }); return true;
 }
-api.get('/store', (req, res) => res.json(rec.list('store_item', null, { order: 'ASC' }).filter((i) => !req.query.category || i.category === req.query.category)));
-api.post('/store/buy', h((req, res) => {
+api.get('/store', (req, res) => res.json(paginate(rec.list('store_item', null, { order: 'ASC', limit: 200 }).filter((i) => !req.query.category || i.category === req.query.category), req, res)));
+api.post('/store/buy', validate(genericPostSchema), h((req, res) => {
   const it = rec.get(Number(req.body?.id)); if (!it) return bad(res, 'Item not found.', 404);
   if (!spend(req.user.id, it.price, `Store: ${it.name}`)) return bad(res, 'Insufficient wallet balance. Top up first.');
   res.json({ message: `Purchased ${it.name}.` });
 }));
-api.get('/cafeteria', (req, res) => res.json(rec.list('menu_item', null, { order: 'ASC' })));
-api.post('/cafeteria/order', h((req, res) => {
+api.get('/cafeteria', (req, res) => res.json(paginate(rec.list('menu_item', null, { order: 'ASC', limit: 200 }), req, res)));
+api.post('/cafeteria/order', validate(cafeteriaOrderSchema), h((req, res) => {
   const ids = (req.body?.items || []).map(Number); const menu = rec.list('menu_item', null);
   const items = ids.map((i) => menu.find((m) => m.id === i)).filter(Boolean); if (!items.length) return bad(res, 'Cart is empty.');
   const total = items.reduce((x, i) => x + i.price, 0);
@@ -819,18 +1061,18 @@ api.post('/cafeteria/order', h((req, res) => {
   rec.add('order', req.user.id, { items: items.map((i) => i.name), total, date: today() });
   res.json({ message: `Order placed (₹${total}). Ready in ~10 minutes.` });
 }));
-api.get('/parking', (req, res) => res.json({ slots: rec.list('parking_slot', null, { order: 'ASC' }), vehicles: rec.list('vehicle', req.user.id) }));
-api.post('/parking/register', h((req, res) => {
+api.get('/parking', (req, res) => res.json({ slots: paginate(rec.list('parking_slot', null, { order: 'ASC' }), req, res), vehicles: paginate(rec.list('vehicle', req.user.id), req, res) }));
+api.post('/parking/register', validate(genericPostSchema), h((req, res) => {
   const { number, type } = req.body || {}; if (!/^[A-Za-z0-9 -]{6,15}$/.test(number || '')) return bad(res, 'Enter a valid vehicle number.');
   res.json({ message: 'Vehicle registered.', vehicle: rec.add('vehicle', req.user.id, { number: number.toUpperCase(), type }) });
 }));
-api.get('/live', (req, res) => res.json(rec.list('live_event', null, { order: 'ASC' })));
-api.get('/mocktests', (req, res) => res.json(rec.list('mocktest', null, { order: 'ASC' }).filter((t) => !req.query.exam || t.exam === req.query.exam)));
+api.get('/live', (req, res) => res.json(paginate(rec.list('live_event', null, { order: 'ASC' }), req, res)));
+api.get('/mocktests', (req, res) => res.json(paginate(rec.list('mocktest', null, { order: 'ASC' }).filter((t) => !req.query.exam || t.exam === req.query.exam), req, res)));
 
 // ---------- projects ----------
 const own = (req, id) => { const p = rec.get(Number(id)); return p && p.user_id === req.user.id ? p : null; };
-api.get('/projects', (req, res) => res.json({ projects: rec.list('project', req.user.id), guides: rec.list('faculty', null, { order: 'ASC' }).map((f) => f.name) }));
-api.post('/projects', h((req, res) => {
+api.get('/projects', (req, res) => res.json({ projects: paginate(rec.list('project', req.user.id), req, res), guides: rec.list('faculty', null, { order: 'ASC' }).map((f) => f.name) }));
+api.post('/projects', validate(genericPostSchema), h((req, res) => {
   const { title, desc, guide } = req.body || {}; if (!title) return bad(res, 'Project title is required.');
   res.json(rec.add('project', req.user.id, { title, desc: desc || '', guide: guide || 'Not assigned', status: 'Active', progress: 0 }));
 }));
@@ -839,32 +1081,32 @@ api.get('/projects/:id', (req, res) => {
   const by = (k) => rec.list(k, req.user.id, { order: 'ASC' }).filter((x) => x.project_id === p.id);
   res.json({ project: p, milestones: by('milestone'), updates: by('update').reverse(), discussion: by('discussion') });
 });
-api.post('/projects/:id/milestones', h((req, res) => {
+api.post('/projects/:id/milestones', validate(genericPostSchema), h((req, res) => {
   const p = own(req, req.params.id); if (!p) return bad(res, 'Project not found.', 404);
   if (!req.body?.title) return bad(res, 'Milestone title required.');
   res.json(rec.add('milestone', req.user.id, { project_id: p.id, title: req.body.title, due: req.body.due || today(), done: false }));
 }));
-api.post('/projects/:id/milestones/:mid/toggle', h((req, res) => {
+api.post('/projects/:id/milestones/:mid/toggle', validate(genericPostSchema), h((req, res) => {
   const p = own(req, req.params.id);
   if (!p) return bad(res, 'Project not found.', 404);
   const m = rec.get(Number(req.params.mid));
   if (!m || m.project_id !== p.id || m.user_id !== req.user.id) return bad(res, 'Milestone not found.', 404);
   res.json(rec.update(m.id, { done: !m.done }));
 }));
-api.post('/projects/:id/updates', h((req, res) => {
+api.post('/projects/:id/updates', validate(genericPostSchema), h((req, res) => {
   const p = own(req, req.params.id); if (!p) return bad(res, 'Project not found.', 404);
   const v = Math.max(0, Math.min(100, Number(req.body?.value) || 0));
   rec.update(p.id, { progress: v, status: v >= 100 ? 'Completed' : 'Active' }); addXp(req.user.id, 10);
   res.json(rec.add('update', req.user.id, { project_id: p.id, value: v, note: req.body?.note || '' }));
 }));
-api.post('/projects/:id/discussion', h((req, res) => {
+api.post('/projects/:id/discussion', validate(genericPostSchema), h((req, res) => {
   const p = own(req, req.params.id); if (!p) return bad(res, 'Project not found.', 404);
   res.json(rec.add('discussion', req.user.id, { project_id: p.id, author: req.user.name, message: String(req.body?.message || '').slice(0, 500) }));
 }));
 
 // ---------- certificates & hall ticket ----------
-api.get('/certificates', (req, res) => res.json({ requests: rec.list('cert_request', req.user.id), revaluations: rec.list('revaluation', req.user.id) }));
-api.post('/certificates/request', h((req, res) => {
+api.get('/certificates', (req, res) => res.json({ requests: paginate(rec.list('cert_request', req.user.id), req, res), revaluations: paginate(rec.list('revaluation', req.user.id), req, res) }));
+api.post('/certificates/request', validate(genericPostSchema), h((req, res) => {
   const { type, details } = req.body || {};
   const label = { bonafide: 'Bonafide Certificate', transfer_certificate: 'Transfer Certificate', id_card: 'QR Campus ID Card' }[type]; if (!label) return bad(res, 'Choose a document type.');
   const auto = type !== 'transfer_certificate'; // bonafide + ID card are issued instantly by automation
@@ -872,7 +1114,7 @@ api.post('/certificates/request', h((req, res) => {
   notify(req.user.id, `${label} request ${auto ? 'issued automatically' : 'sent for approval'} (ref ${r.ref}).`, 'certificate');
   res.json({ message: `${label} ${auto ? 'issued instantly' : 'submitted for approval'}.`, request: r });
 }));
-api.post('/revaluation', h((req, res) => {
+api.post('/revaluation', validate(genericPostSchema), h((req, res) => {
   const { subject, exam, reason } = req.body || {}; if (!subject) return bad(res, 'Subject is required.');
   res.json({ message: 'Revaluation request submitted. Fee ₹500 per paper.', request: rec.add('revaluation', req.user.id, { subject, exam, reason, status: 'Submitted', date: today() }) });
 }));
@@ -894,8 +1136,8 @@ api.get('/search', (req, res) => {
 });
 
 // ---------- automation centre ----------
-api.get('/automation/log', (req, res) => res.json({ jobs: Object.keys(automation.jobs), log: db.prepare('SELECT * FROM automation_log ORDER BY id DESC LIMIT 40').all(), llm: ai.llmAvailable() }));
-api.post('/automation/run', h((req, res) => res.json({ results: req.body?.job && automation.jobs[req.body.job] ? [automation.runJob(req.body.job)] : automation.runAll() })));
+api.get('/automation/log', (req, res) => res.json({ jobs: Object.keys(automation.jobs), log: paginate(db.prepare('SELECT * FROM automation_log ORDER BY id DESC LIMIT 100').all(), req, res), llm: ai.llmAvailable() }));
+api.post('/automation/run', validate(genericPostSchema), h((req, res) => res.json({ results: req.body?.job && automation.jobs[req.body.job] ? [automation.runJob(req.body.job)] : automation.runAll() })));
 
 
 // ---------- resource optimization map (demo telemetry) ----------
@@ -930,46 +1172,46 @@ api.get('/resources/telemetry', h((req, res) => {
 
 // ---------- Smart Campus Suite Endpoints ----------
 // 1. Smart Attendance
-api.post('/attendance/face-verify', h((req, res) => res.json(smartSuite.verifyFaceAttendance(req.user.id, req.body))));
+api.post('/attendance/face-verify', validate(genericPostSchema), h((req, res) => res.json(smartSuite.verifyFaceAttendance(req.user.id, req.body))));
 api.get('/attendance/qr-token', (req, res) => res.json(smartSuite.generateQrAttendanceToken(req.query.room)));
-api.post('/attendance/qr-scan', h((req, res) => res.json(smartSuite.verifyQrAttendance(req.user.id, req.body?.token, req.body))));
-api.post('/attendance/rfid-tap', h((req, res) => res.json(smartSuite.verifyRfidTap(req.user.id, req.body?.badgeId, req.body?.location))));
+api.post('/attendance/qr-scan', validate(genericPostSchema), h((req, res) => res.json(smartSuite.verifyQrAttendance(req.user.id, req.body?.token, req.body))));
+api.post('/attendance/rfid-tap', validate(genericPostSchema), h((req, res) => res.json(smartSuite.verifyRfidTap(req.user.id, req.body?.badgeId, req.body?.location))));
 api.get('/attendance/analytics', h((req, res) => res.json(smartSuite.getDetailedAttendanceAnalytics(req.user.id))));
-api.post('/attendance/parent-alert', h((req, res) => {
+api.post('/attendance/parent-alert', validate(genericPostSchema), h((req, res) => {
   const snap = ai.snapshot(req.user.id);
   smartSuite.dispatchParentLowAttendanceAlert(req.user.id, snap);
   res.json({ message: 'Low attendance alert dispatched to student and parent.' });
 }));
 
 // 2. Academic Management & Conflict-Free Timetable
-api.post('/academic/timetable-conflict-check', h((req, res) => res.json(smartSuite.checkTimetableConflicts(req.body?.slots))));
-api.post('/academic/generate-timetable', h((req, res) => res.json(smartSuite.generateConflictFreeTimetable(req.body))));
-api.get('/assignments', h((req, res) => res.json(smartSuite.listActiveAssignments(req.user.id))));
-api.post('/assignments/:id/submit', h((req, res) => res.json(smartSuite.submitAssignment(req.user.id, { assignmentId: req.params.id, ...req.body }))));
+api.post('/academic/timetable-conflict-check', validate(genericPostSchema), h((req, res) => res.json(smartSuite.checkTimetableConflicts(req.body?.slots))));
+api.post('/academic/generate-timetable', validate(genericPostSchema), h((req, res) => res.json(smartSuite.generateConflictFreeTimetable(req.body))));
+api.get('/assignments', h((req, res) => res.json(paginate(smartSuite.listActiveAssignments(req.user.id), req, res))));
+api.post('/assignments/:id/submit', validate(genericPostSchema), h((req, res) => res.json(smartSuite.submitAssignment(req.user.id, { assignmentId: req.params.id, ...req.body }))));
 api.get('/results/grade-card', h((req, res) => res.json(smartSuite.generateOfficialGradeCard(req.user.id))));
 
 // 3. Early Warning ML Radar
 api.get('/analytics/early-warning-radar', h((req, res) => res.json(smartSuite.runEarlyWarningCohortRadar())));
 
 // 4. Safety & Security Operations
-api.post('/safety/sos', h((req, res) => {
+api.post('/safety/sos', validate(genericPostSchema), h((req, res) => {
   const result = smartSuite.triggerSosAlert(req.user.id, req.body);
   io.emit('safety:sos_alert', result.event);
   res.json(result);
 }));
-api.get('/safety/sos-logs', (req, res) => res.json(smartSuite.listActiveSosAlerts()));
-api.get('/security/visitors', (req, res) => res.json(smartSuite.listVisitorLogs()));
-api.post('/security/visitor-pass', h((req, res) => res.json(smartSuite.issueVisitorPass(req.body))));
+api.get('/safety/sos-logs', (req, res) => res.json(paginate(smartSuite.listActiveSosAlerts(), req, res)));
+api.get('/security/visitors', (req, res) => res.json(paginate(smartSuite.listVisitorLogs(), req, res)));
+api.post('/security/visitor-pass', validate(genericPostSchema), h((req, res) => res.json(smartSuite.issueVisitorPass(req.body))));
 api.get('/security/cctv-analytics', (req, res) => res.json(smartSuite.getCctvSecurityAnalytics()));
 
 // 5. Campus Services & IoT
 api.get('/campus/hostel-mess', h((req, res) => res.json(smartSuite.getHostelAndMessInfo(req.user.id))));
-api.post('/campus/mess-feedback', h((req, res) => res.json(smartSuite.submitMessFeedback(req.user.id, req.body))));
+api.post('/campus/mess-feedback', validate(genericPostSchema), h((req, res) => res.json(smartSuite.submitMessFeedback(req.user.id, req.body))));
 api.get('/campus/transport-live', (req, res) => res.json(smartSuite.getLiveTransportRoutes()));
-api.post('/resources/book-slot', h((req, res) => res.json(smartSuite.bookCampusResource(req.user.id, req.body))));
+api.post('/resources/book-slot', validate(genericPostSchema), h((req, res) => res.json(smartSuite.bookCampusResource(req.user.id, req.body))));
 
 // 6. Grievance & AI Sentiment Analysis
-api.post('/grievance/analyze', (req, res) => res.json(smartSuite.analyzeSentiment(req.body?.text)));
+api.post('/grievance/analyze', validate(genericPostSchema), (req, res) => res.json(smartSuite.analyzeSentiment(req.body?.text)));
 
 // 7. 5-User Roles (Parent & Security)
 api.get('/parent/ward-overview', h((req, res) => res.json(smartSuite.getParentWardSummary(req.user.id))));
@@ -1100,6 +1342,34 @@ api.get('/profile', h((req, res) => {
   const snap = ai.snapshot(req.user.id);
   const semSubjects = db.prepare('SELECT COUNT(*) as count FROM subjects WHERE sem=?').get(user.semester || 4);
 
+  // Default institutional values matching the university student portal schema
+  const defaultDetails = {
+    father_name: 'ANIL MAHESHWARI',
+    mother_name: 'SMITA MAHESHWARI',
+    gender: 'Male',
+    dob: '10/11/2005',
+    religion: 'JAIN',
+    area: 'Urban',
+    category: 'GEN',
+    institute_name: 'MADHAV INSTITUTE OF TECHNOLOGY AND SCIENCE, (DEEMED UNIVERSITY), GWALIOR, M.P.',
+    programme: 'B.Tech',
+    branch: '[IT] INFORMATION TECHNOLOGY',
+    address: 'dheeraj ward 4 Lakhanadon seoni mp',
+    state: 'Madhya Pradesh',
+    district: 'Seoni',
+    pincode: '480886',
+    father_phone: '9753099945',
+    blood_group: 'B+',
+    guardian_phone: '7024408870',
+    abc_id: '093068200110',
+    admission_year: '2024',
+    photo_url: '/assets/student_photo.png',
+    signature_url: '/assets/student_signature.png'
+  };
+
+  const storedDetails = rec.getDoc('student_profile_extended', req.user.id, defaultDetails);
+  const details = { ...defaultDetails, ...storedDetails };
+
   res.json({
     user,
     academic: {
@@ -1108,12 +1378,13 @@ api.get('/profile', h((req, res) => {
       subjectsCount: semSubjects ? semSubjects.count : 6,
       credits: 22,
       backlogs: 0
-    }
+    },
+    details
   });
 }));
 
-api.put('/profile', h((req, res) => {
-  const { phone, bio, year, semester } = req.body || {};
+api.put('/profile', validate(profileUpdateSchema), h((req, res) => {
+  const { phone, bio, year, semester, name, ...extendedDetails } = req.body || {};
   const cleanPhone = String(phone || '').trim().slice(0, 20);
   const cleanBio = String(bio || '').trim().slice(0, 200);
 
@@ -1127,14 +1398,34 @@ api.put('/profile', h((req, res) => {
     newSem = (newYear * 2) - 1;
   }
 
-  db.prepare('UPDATE users SET phone = ?, bio = ?, year = ?, semester = ? WHERE id = ?')
-    .run(cleanPhone, cleanBio, newYear, newSem, req.user.id);
+  if (name && typeof name === 'string' && name.trim()) {
+    db.prepare('UPDATE users SET name = ?, phone = ?, bio = ?, year = ?, semester = ? WHERE id = ?')
+      .run(name.trim(), cleanPhone, cleanBio, newYear, newSem, req.user.id);
+  } else {
+    db.prepare('UPDATE users SET phone = ?, bio = ?, year = ?, semester = ? WHERE id = ?')
+      .run(cleanPhone, cleanBio, newYear, newSem, req.user.id);
+  }
+
+  // Persist extended profile details into document store
+  const currentDetails = rec.getDoc('student_profile_extended', req.user.id, {});
+  const updatedDetails = { ...currentDetails, ...extendedDetails };
+  rec.setDoc('student_profile_extended', req.user.id, updatedDetails);
+
+  auditLog({
+    userId: req.user.id,
+    action: 'PROFILE_UPDATE',
+    table: 'users',
+    recordId: req.user.id,
+    newValue: { phone: cleanPhone, name, year: newYear, semester: newSem },
+    ip: req.ip
+  });
 
   const updatedUser = db.prepare('SELECT id, roll_no, name, email, dept, year, semester, xp, role, phone, bio FROM users WHERE id=?').get(req.user.id);
 
   res.json({
     message: 'Profile details and academic cohort updated successfully.',
-    user: updatedUser
+    user: updatedUser,
+    details: updatedDetails
   });
 }));
 
@@ -1166,13 +1457,15 @@ api.get('/materials', h((req, res) => {
     ORDER BY sm.id DESC
   `).all(year, sem);
 
+  const paged = paginate(materials, req, res);
+
   res.json({
     studentYear: year,
     studentSem: sem,
     dept,
     user: { year, semester: sem, dept },
-    items: materials,
-    materials: materials
+    items: paged,
+    materials: paged
   });
 }));
 
@@ -1229,7 +1522,7 @@ api.get('/parking/overview', h((req, res) => {
   });
 }));
 
-api.post('/parking/vehicle', h((req, res) => {
+api.post('/parking/vehicle', validate(parkingVehicleSchema), h((req, res) => {
   const { plate_number, vehicle_type, number, regNumber, type, model } = req.body || {};
   const plate = String(plate_number || regNumber || number || '').trim().toUpperCase().slice(0, 20);
   const vType = String(vehicle_type || type || 'Two-Wheeler').trim().slice(0, 30);
@@ -1257,7 +1550,7 @@ api.post('/parking/vehicle', h((req, res) => {
 }));
 
 // 6. Alias /ai/planner to /ai/planner-chat
-api.post('/ai/planner', h(async (req, res) => {
+api.post('/ai/planner', validate(genericPostSchema), h(async (req, res) => {
   const { message, history } = req.body || {};
   if (!message) return bad(res, 'Message is required.');
   const result = await ai.plannerChat(req.user.id, history || [], message);
@@ -1269,12 +1562,26 @@ api.post('/ai/planner', h(async (req, res) => {
 const adminRouter = require('./admin');
 api.use('/admin', adminRouter);
 
+// Mount Faculty Sessions Router (Step 3: Real attendance)
+const sessionsRouter = require('./sessions');
+api.use('/sessions', auth, sessionsRouter);
+
+require('./routes/quiz')(api, { h });
+require('./routes/doubt')(api, { h }); // academic Doubt Solver (streaming + sessions) // AI Quiz Maker & Performance Analyzer
 app.use('/api', api);
-app.use('/api', (req, res) => bad(res, 'Not found.', 404));
+app.use('/api', (req, res, next) => next(new AppError('API endpoint not found', 404, 'NOT_FOUND')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
-const PORT = process.env.PORT || 3000;
-if (require.main === module) server.listen(PORT, () => { console.log(`Smart Campus AI running at http://localhost:${PORT}`); automation.start(); });
+// Centralized Express Error Handling Middleware
+app.use(errorHandler);
+
+const PORT = config.port;
+if (require.main === module) {
+  server.listen(PORT, () => {
+    logger.info(`Smart Campus AI running at http://localhost:${PORT}`);
+    automation.start();
+  });
+}
 module.exports = { app, server };

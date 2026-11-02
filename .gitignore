@@ -6,7 +6,9 @@ node_modules/
 npm-debug.log
 coverage/
 *.bak
-data/*.bak
+*.zip
+data/*.db
 data/*.db-wal
 data/*.db-shm
+data/backup*/
 *-prompt.md

@@ -7,7 +7,7 @@ A production-grade, secure, full-stack Smart Campus Management SaaS platform fea
 ## 🌟 Key Capabilities
 
 - **Google Gemini AI Integration**: Conversational campus advisor, AI doubt solver, dynamic 6-day study routine generator, and ATS resume scoring powered by the official `@google/genai` SDK with automatic offline fallback when unconfigured.
-- **Enterprise Security Architecture**: Strict JWT token authentication, server-verified role-based authorization (Students, Faculty, System Administrators), IDOR prevention across all records, and security headers (`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`).
+- **Enterprise Security Architecture**: Strict JWT token authentication, server-verified role-based authorization (Students, Faculty, System Administrators), IDOR prevention across all records, and security headers .
 - **Multimodal Smart Attendance**: Biometric 3D face liveness verification, dynamic 20-second expiring rolling QR codes, contactless RFID/NFC tap simulation, and automated low-attendance parent SMS dispatch.
 - **Academic & Operational Command Desk**: Constraint satisfaction problem (CSP) conflict-free timetable engine, AI rubric submission grading, 75% attendance bunk planner, and UGC-compliant official grade card issuance.
 - **Campus IoT & Living Services**: Simulated resource optimization telemetry, smart hostel/mess portal, live transport route tracking, safety SOS geo-dispatch, and visitor gate pass management.

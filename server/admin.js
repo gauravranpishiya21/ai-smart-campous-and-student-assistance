@@ -1,16 +1,32 @@
 // Admin Management API for Smart Campus AI
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { db, rec, notify } = require('./db');
+const { db, rec, notify, auditLog, withTransaction } = require('./db');
 const ai = require('./ai');
 const automation = require('./automation');
+const { paginate } = require('./middleware/pagination');
+const {
+  validate,
+  genericPostSchema,
+  adminStudentSchema,
+  adminAttendanceOverrideSchema,
+  adminMarksUpdateSchema,
+  adminNoticeSchema,
+  adminMaterialsSchema
+} = require('./middleware/validate');
 
 const router = express.Router();
-const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
+const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next || ((e) => {
   console.error('[AdminAPI Error]', e);
-  res.status(500).json({ message: e.message || 'Server error' });
-});
-const bad = (res, msg, code = 400) => res.status(code).json({ message: msg });
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: e.message || 'Server error' }, message: e.message || 'Server error' });
+}));
+const bad = (res, msg, code = 400, errCode = null) => {
+  const c = errCode || (code === 403 ? 'FORBIDDEN' : code === 401 ? 'UNAUTHORIZED' : code === 404 ? 'NOT_FOUND' : 'BAD_REQUEST');
+  return res.status(code).json({
+    error: { code: c, message: msg },
+    message: msg
+  });
+};
 const today = () => new Date().toISOString().slice(0, 10);
 
 // Admin authorization guard
@@ -18,7 +34,7 @@ function adminOnly(req, res, next) {
   if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
     return next();
   }
-  return bad(res, 'Administrator access required.', 403);
+  return bad(res, 'Administrator access required.', 403, 'FORBIDDEN');
 }
 
 router.use(adminOnly);
@@ -87,7 +103,7 @@ router.get('/overview', h(async (req, res) => {
       inProgressTickets,
       resolvedTickets,
       pendingLeaves,
-      aiModel: ai.llmAvailable() ? (process.env.GEMINI_MODEL || 'Gemini 1.5 Flash') : 'Offline AI Engine',
+      aiModel: ai.llmAvailable() ? require('./config').geminiModel : 'Offline AI Engine',
     },
     depts: deptCounts,
     recentAutomation: recentLogs
@@ -119,10 +135,10 @@ router.get('/students', h(async (req, res) => {
     };
   });
 
-  res.json(enriched);
+  res.json(paginate(enriched, req, res));
 }));
 
-router.post('/students', h(async (req, res) => {
+router.post('/students', validate(adminStudentSchema), h(async (req, res) => {
   const { name, roll_no, email, password, dept, year, semester, role } = req.body || {};
   if (!name || !roll_no || !email) {
     return bad(res, 'Name, roll number, and email are required.');
@@ -172,7 +188,7 @@ router.post('/students', h(async (req, res) => {
   }
 }));
 
-router.put('/students/:id', h(async (req, res) => {
+router.put('/students/:id', validate(genericPostSchema), h(async (req, res) => {
   const userId = Number(req.params.id);
   const { name, email, dept, year, semester, role, xp, password } = req.body || {};
 
@@ -258,7 +274,7 @@ router.get('/attendance', h(async (req, res) => {
   res.json(report);
 }));
 
-router.post('/attendance/override', h(async (req, res) => {
+router.post('/attendance/override', validate(adminAttendanceOverrideSchema), h(async (req, res) => {
   const { studentId, subjectId, addAttended, setAttended, setTotal, reason } = req.body || {};
   const sid = Number(studentId);
 
@@ -297,6 +313,16 @@ router.post('/attendance/override', h(async (req, res) => {
 
   notify(sid, `Attendance adjustment applied by Administration: ${reason || 'Duty Leave granted'}.`, 'success', `att_override_${Date.now()}`);
 
+  auditLog({
+    userId: req.user.id,
+    action: 'OVERRIDE',
+    table: 'attendance',
+    recordId: sid,
+    oldValue: null,
+    newValue: { studentId: sid, subjectId: subjectId || 'all', addAttended, setAttended, setTotal, reason },
+    ip: req.ip
+  });
+
   res.json({ message: 'Attendance records updated successfully.' });
 }));
 
@@ -320,7 +346,7 @@ router.get('/academics', h(async (req, res) => {
   });
 }));
 
-router.post('/marks/update', h(async (req, res) => {
+router.post('/marks/update', validate(adminMarksUpdateSchema), h(async (req, res) => {
   const { studentId, subjectId, internal, endsem, assignDone, assignTotal } = req.body || {};
   const sid = Number(studentId);
   const subId = Number(subjectId);
@@ -341,6 +367,16 @@ router.post('/marks/update', h(async (req, res) => {
   `).run(sid, subId, intVal, endVal, doneVal, totVal, intVal, endVal, doneVal, totVal);
 
   notify(sid, 'Your academic marks or assignment records have been updated.', 'info', `marks_update_${subId}`);
+
+  auditLog({
+    userId: req.user.id,
+    action: 'UPDATE',
+    table: 'marks',
+    recordId: `${sid}:${subId}`,
+    oldValue: cur || null,
+    newValue: { internal: intVal, endsem: endVal, assign_done: doneVal, assign_total: totVal },
+    ip: req.ip
+  });
 
   res.json({ message: 'Academic marks updated successfully.' });
 }));
@@ -383,7 +419,7 @@ router.get('/fees', h(async (req, res) => {
   });
 }));
 
-router.post('/fees/record', h(async (req, res) => {
+router.post('/fees/record', validate(genericPostSchema), h(async (req, res) => {
   const { studentId, semester, amount, paymentMode, remarks } = req.body || {};
   const sid = Number(studentId);
   const amt = Number(amount);
@@ -425,10 +461,10 @@ router.post('/fees/record', h(async (req, res) => {
 // ---------- 6. Notices & Campus Bulletins ----------
 router.get('/notices', h(async (req, res) => {
   const notices = db.prepare('SELECT * FROM notices ORDER BY id DESC').all();
-  res.json(notices);
+  res.json(paginate(notices, req, res));
 }));
 
-router.post('/notices', h(async (req, res) => {
+router.post('/notices', validate(adminNoticeSchema), h(async (req, res) => {
   const { title, body, category, priority } = req.body || {};
   if (!title || !body) return bad(res, 'Notice title and body content are required.');
 
@@ -468,10 +504,10 @@ router.get('/tickets', h(async (req, res) => {
     student: studentMap[t.user_id] || { name: 'Student', roll_no: 'N/A', dept: 'General' }
   }));
 
-  res.json(enriched);
+  res.json(paginate(enriched, req, res));
 }));
 
-router.post('/tickets/:id/status', h(async (req, res) => {
+router.post('/tickets/:id/status', validate(genericPostSchema), h(async (req, res) => {
   const tid = Number(req.params.id);
   const { status, resolution, assignedTo } = req.body || {};
 
@@ -505,10 +541,10 @@ router.get('/leaves', h(async (req, res) => {
     student: studentMap[l.user_id] || { name: 'Student', roll_no: 'N/A', dept: 'General' }
   }));
 
-  res.json(enriched);
+  res.json(paginate(enriched, req, res));
 }));
 
-router.post('/leaves/:id/review', h(async (req, res) => {
+router.post('/leaves/:id/review', validate(genericPostSchema), h(async (req, res) => {
   const lid = Number(req.params.id);
   const { status, remarks } = req.body || {};
 
@@ -538,13 +574,13 @@ router.get('/automation', h(async (req, res) => {
   const logs = db.prepare('SELECT * FROM automation_log ORDER BY id DESC LIMIT 50').all();
   res.json({
     jobs,
-    logs,
+    logs: paginate(logs, req, res),
     llm: ai.llmAvailable(),
-    model: ai.llmAvailable() ? (process.env.CLAUDE_MODEL || 'claude-sonnet-5-5') : 'Offline AI Engine'
+    model: ai.llmAvailable() ? require('./config').geminiModel : 'Offline AI Engine'
   });
 }));
 
-router.post('/automation/run', h(async (req, res) => {
+router.post('/automation/run', validate(genericPostSchema), h(async (req, res) => {
   const { job } = req.body || {};
   let results;
   if (job && automation.jobs[job]) {
@@ -557,7 +593,7 @@ router.post('/automation/run', h(async (req, res) => {
 
 // ---------- 10. Security Audit Log ----------
 router.get('/audit-log', h(async (req, res) => {
-  const logins = rec.list('login', undefined, { limit: 50 });
+  const logins = rec.list('login', undefined, { limit: 100 });
   const users = db.prepare("SELECT id, name, roll_no, role FROM users").all();
   const uMap = {};
   users.forEach(u => { uMap[u.id] = u; });
@@ -567,7 +603,7 @@ router.get('/audit-log', h(async (req, res) => {
     user: uMap[l.user_id] || { name: 'Unknown / Guest', roll_no: '-', role: '-' }
   }));
 
-  res.json(audit);
+  res.json(paginate(audit, req, res));
 }));
 
 
@@ -588,10 +624,10 @@ router.get('/materials', h(async (req, res) => {
   query += ' ORDER BY sm.id DESC';
 
   const items = db.prepare(query).all(...params);
-  res.json({ items });
+  res.json({ items: paginate(items, req, res) });
 }));
 
-router.post('/materials', h(async (req, res) => {
+router.post('/materials', validate(adminMaterialsSchema), h(async (req, res) => {
   const { title, description, dept, year, semester, subject_id, material_type, file_name } = req.body || {};
   if (!title || !dept || !year || !semester) {
     return bad(res, 'Title, department, academic year, and semester are required.');

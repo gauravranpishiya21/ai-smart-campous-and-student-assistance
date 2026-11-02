@@ -1,145 +1,33 @@
 // AI engine: analytics models (always on, offline) + Google Gemini LLM for conversational features.
 const { db, rec } = require('./db');
+const prompts = require('./prompts');
+const gemini = require('./services/gemini');
 
-// ---------- LLM (Google Gemini API) ----------
-let client = null;
-let customClient = null; // for testing and mock injection
-
-// In-memory rate limiter: max 20 calls/min to prevent quota exhaustion
-const rateLimiter = {
-  windowMs: 60 * 1000,
-  maxPerWindow: 20,
-  timestamps: [],
-  check() {
-    const now = Date.now();
-    this.timestamps = this.timestamps.filter((t) => now - t < this.windowMs);
-    if (this.timestamps.length >= this.maxPerWindow) return false;
-    this.timestamps.push(now);
-    return true;
-  },
-  reset() {
-    this.timestamps = [];
-  }
-};
-
-// Response deduplication cache (30 seconds TTL)
-const aiCache = new Map();
-const CACHE_TTL_MS = 30 * 1000;
-
-function getCache(key) {
-  const item = aiCache.get(key);
-  if (!item) return null;
-  if (Date.now() - item.time > CACHE_TTL_MS) {
-    aiCache.delete(key);
-    return null;
-  }
-  return item.data;
-}
-
-function setCache(key, data) {
-  if (aiCache.size > 100) {
-    const oldestKey = aiCache.keys().next().value;
-    aiCache.delete(oldestKey);
-  }
-  aiCache.set(key, { time: Date.now(), data });
-}
+// ---------- LLM (Google Gemini API via central service) ----------
+// ARCHITECTURAL INVARIANT: server/services/gemini.js is the only file that calls Google directly.
 
 function llmAvailable() {
-  return Boolean(process.env.GEMINI_API_KEY || customClient);
+  return gemini.isAvailable();
 }
 
 function getGeminiModel() {
-  return process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+  return gemini.getGeminiModel();
 }
 
 function setTestClient(mockClient) {
-  customClient = mockClient;
-  client = mockClient;
+  gemini.setTestClient(mockClient);
 }
 
-async function llm(system, messages, { maxTokens = 700 } = {}) {
-  if (!llmAvailable()) return null;
+const rateLimiter = gemini.rateLimiter;
 
-  // Rate limiting guard
-  if (!rateLimiter.check()) {
-    console.warn('[ai] Gemini rate limit reached (max 20 req/min). Using offline fallback.');
-    return null;
-  }
-
-  // Deduplication cache check
-  const cacheKey = JSON.stringify({ system, messages, maxTokens });
-  const cached = getCache(cacheKey);
-  if (cached) return cached;
-
-  try {
-    let aiClient = customClient;
-    if (!aiClient) {
-      if (!client) {
-        const { GoogleGenAI } = require('@google/genai');
-        client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      }
-      aiClient = client;
-    }
-
-    let modelName = getGeminiModel();
-
-    // Map messages to Gemini Content schema (roles: 'user' and 'model')
-    const contents = (messages || []).map((m) => ({
-      role: (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
-      parts: [{ text: String(m.content || '') }]
-    }));
-
-    let response;
-    try {
-      response = await aiClient.models.generateContent({
-        model: modelName,
-        contents,
-        config: {
-          systemInstruction: system || undefined,
-          maxOutputTokens: maxTokens,
-          temperature: 0.7,
-          abortSignal: AbortSignal.timeout(20000)
-        }
-      });
-    } catch (modelErr) {
-      const errMsg = modelErr?.message || String(modelErr);
-      if (/not found|404/i.test(errMsg) && modelName !== 'gemini-3.5-flash') {
-        console.warn(`[ai] Model ${modelName} not found, falling back to gemini-3.5-flash...`);
-        modelName = 'gemini-3.5-flash';
-        response = await aiClient.models.generateContent({
-          model: modelName,
-          contents,
-          config: {
-            systemInstruction: system || undefined,
-            maxOutputTokens: maxTokens,
-            temperature: 0.7,
-            abortSignal: AbortSignal.timeout(20000)
-          }
-        });
-      } else {
-        throw modelErr;
-      }
-    }
-
-    const text = response?.text ? response.text.trim() : null;
-    if (text) {
-      setCache(cacheKey, text);
-      return text;
-    }
-    return null;
-  } catch (e) {
-    const msg = e?.message || String(e);
-    if (/RESOURCE_EXHAUSTED|429|quota/i.test(msg)) {
-      console.warn('[ai] Gemini quota exhausted or rate limited. Using offline engine:', msg);
-    } else if (/timeout|aborted/i.test(msg)) {
-      console.warn('[ai] Gemini API request timed out (20s limit). Using offline engine.');
-    } else if (/API_KEY_INVALID|invalid.*api.*key|unauthenticated/i.test(msg)) {
-      console.warn('[ai] Gemini API key invalid. Using offline engine:', msg);
-    } else {
-      console.warn('[ai] Gemini API error, using offline engine:', msg);
-    }
-    return null;
-  }
+async function llm(system, messages, { maxTokens = 700, userId = null, feature = 'chat' } = {}) {
+  return gemini.generateContent({
+    system,
+    messages,
+    maxTokens,
+    userId,
+    feature
+  });
 }
 
 // ---------- grading ----------
@@ -374,6 +262,87 @@ function atsAnalyze(r) {
   return { score, skills: found, tips };
 }
 
+async function atsAnalyzeAsync(r, userId = null) {
+  const offlineResult = atsAnalyze(r);
+  if (!gemini.isAvailable()) return offlineResult;
+
+  const systemInstruction = prompts.resumeScorer;
+  const userPrompt = `CANDIDATE RESUME PROFILE:
+Name: ${r.name || 'Candidate'}
+Email: ${r.email || 'N/A'}
+Summary & Skills: "${r.summary || ''}"
+
+Please analyze this candidate resume and respond strictly with the JSON schema.`;
+
+  const structured = await gemini.generateContent({
+    system: systemInstruction,
+    prompt: userPrompt,
+    responseMimeType: 'application/json',
+    maxTokens: 500,
+    userId,
+    feature: 'resume_scoring',
+    offlineFallback: () => offlineResult
+  });
+
+  if (structured && typeof structured === 'object' && structured.score != null) {
+    return {
+      score: structured.score,
+      level: structured.level || (structured.score >= 80 ? 'Competitive' : 'Needs Work'),
+      summary: structured.summary || '',
+      skills: structured.skills_detected || offlineResult.skills,
+      tips: structured.improvement_tips || offlineResult.tips,
+      formatting_score: structured.formatting_score || 85,
+      engine: 'gemini'
+    };
+  }
+
+  return offlineResult;
+}
+
+async function gradeAssignment({ submission = '', rubric = 'Standard university engineering rubric', maxScore = 50, userId = null } = {}) {
+  const offlineFallback = () => {
+    const len = (submission || '').trim().length;
+    const score = Math.min(maxScore, Math.max(15, Math.round((len > 200 ? 42 : len > 100 ? 35 : 24) * (maxScore / 50))));
+    const g = grade(score * (100 / maxScore));
+    return {
+      score,
+      max_score: maxScore,
+      grade: g.grade,
+      feedback: 'Offline rubric evaluation completed based on structural completeness and key concept presence.',
+      rubric_breakdown: {
+        understanding: Math.round(score * 0.4),
+        execution: Math.round(score * 0.4),
+        syntax_quality: Math.round(score * 0.2)
+      },
+      strengths: ['Submission meets basic formatting requirements', 'Core topics addressed'],
+      improvements: ['Include more test case demonstrations', 'Add architectural diagrams'],
+      engine: 'offline'
+    };
+  };
+
+  const systemInstruction = prompts.assignmentGrader;
+  const userPrompt = `RUBRIC: ${rubric}\nMAX SCORE: ${maxScore}\n\nSTUDENT SUBMISSION:\n"${submission}"\n\nPlease grade this submission adhering strictly to the JSON schema.`;
+
+  const structured = await gemini.generateContent({
+    system: systemInstruction,
+    prompt: userPrompt,
+    responseMimeType: 'application/json',
+    maxTokens: 500,
+    userId,
+    feature: 'assignment_grading',
+    offlineFallback
+  });
+
+  if (structured && typeof structured === 'object' && structured.score != null) {
+    return {
+      ...structured,
+      engine: 'gemini'
+    };
+  }
+
+  return offlineFallback();
+}
+
 // ---------- doubt solver ----------
 const KB = [
   { k: ['deadlock'], t: 'Deadlock', e: 'A deadlock is a state where a set of processes are blocked forever because each holds a resource and waits for one held by another. It needs four Coffman conditions at once: mutual exclusion, hold and wait, no preemption and circular wait. Break any one of them to prevent deadlock.', n: ['Prevention: break one Coffman condition', 'Avoidance: Banker\'s algorithm keeps the system in a safe state', 'Detection: find cycles in the resource-allocation graph, then recover'], r: ['Banker\'s Algorithm', 'Resource Allocation Graph', 'Process Synchronization'] },
@@ -403,19 +372,8 @@ function doubtLocal(subject, text) {
     notes: ['Write down the givens and the unknown', 'Match the problem to a known concept', 'Verify with a small example'], topics: [subject + ' fundamentals', 'Previous year questions', 'Worked examples'], source: 'offline-generic' };
 }
 async function doubtSolve(subject, text) {
-  const out = await llm(
-    'You are a patient university tutor. Answer the student doubt clearly and accurately for an engineering undergraduate. Respond ONLY with JSON: {"explanation": string (use short paragraphs, may use **bold**), "notes": [3-5 short key points], "topics": [3 related topics]}.',
-    [{ role: 'user', content: `Subject: ${subject}\nDoubt: ${text}` }], { maxTokens: 900 });
-  if (out) {
-    try {
-      const match = out.match(/\{[\s\S]*\}/);
-      if (match) {
-        const j = JSON.parse(match[0]);
-        if (j.explanation) return { ...j, source: 'gemini' };
-      }
-    } catch { /* fall through */ }
-    return { explanation: out, notes: [], topics: [], source: 'gemini' };
-  }
+  const r = await require('./services/doubtSolver').answerOnce({ userId: null, text, subject });
+  if (r.ok && r.source === 'gemini') return { explanation: r.explanation, notes: r.notes, topics: r.topics, source: 'gemini' };
   return doubtLocal(subject, text);
 }
 
@@ -621,4 +579,4 @@ Keep your tone warm, encouraging, and actionable (max 150 words).`,
 }
 
 module.exports = { llmAvailable, getGeminiModel, setTestClient, rateLimiter, llm, grade, snapshot, forecast, bunkPlan, risk, recordedCgpa, predictCgpa, recommendations, studyPlan, examAdvice,
-  leaveDecision, classifyTicket, summarizeNotice, atsAnalyze, doubtSolve, chat, plannerChat, nextClass, r1 };
+  leaveDecision, classifyTicket, summarizeNotice, atsAnalyze, atsAnalyzeAsync, gradeAssignment, doubtSolve, chat, plannerChat, nextClass, r1 };

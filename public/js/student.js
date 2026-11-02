@@ -44,8 +44,23 @@ window.act = act;
 const val = (id) => ($(id)?.value ?? '').trim();
 window.val = val;
 
-function openModal(id) { const m = $(id); if (m) m.style.display = 'block'; }
-function closeModal(id) { const m = $(id); if (m) m.style.display = 'none'; }
+function openModal(id) {
+  document.body.classList.remove('nav-open');
+  const m = $(id);
+  if (!m) return;
+  m.classList.remove('hidden');
+  if (m.classList.contains('flex')) {
+    m.style.display = 'flex';
+  } else {
+    m.style.display = 'block';
+  }
+}
+function closeModal(id) {
+  const m = $(id);
+  if (!m) return;
+  m.classList.add('hidden');
+  m.style.display = 'none';
+}
 window.openModal = openModal; window.closeModal = closeModal;
 
 // ---------- theme ----------
@@ -513,6 +528,7 @@ let calState = {
   activeView: 'month', // 'month', 'year', 'agenda'
   activeCategory: 'all', // 'all', 'class', 'exam', 'assignment', 'holiday', 'placement'
   compactMechanism: false,
+  selectedStage: null,
   data: null,
   modalEvent: null
 };
@@ -597,6 +613,7 @@ function updateYearCardsUI() {
 
 window.switchCalendarYear = async function (year) {
   calState.selectedYear = Number(year);
+  calState.selectedStage = null;
   updateYearCardsUI();
   await window.loadAcademicCalendar(calState.selectedYear);
   toast(`Switched to Year ${year} Working Mechanism & Academic Calendar.`, 'info');
@@ -738,16 +755,19 @@ function renderWorkingMechanismPipeline() {
       icon = 'fa-spinner fa-spin';
     }
 
+    const isSelected = calState.selectedStage === st.stageNumber;
+    const selectedClass = isSelected ? ' ring-2 ring-indigo-500 border-indigo-500 shadow-lg scale-[1.02]' : '';
+
     return `
-      <div class="p-4 rounded-xl border transition-all ${statusClass} flex flex-col justify-between">
+      <div class="cursor-pointer p-4 rounded-xl border transition-all duration-200 hover:border-indigo-400 hover:shadow-md ${statusClass}${selectedClass} flex flex-col justify-between group" onclick="window.selectMechanismStage(${st.stageNumber})">
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-black uppercase text-slate-400">Stage ${String(st.stageNumber).padStart(2, '0')}</span>
+            <span class="text-[10px] font-black uppercase text-slate-400 group-hover:text-indigo-500 transition">Stage ${String(st.stageNumber).padStart(2, '0')}</span>
             <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${badgeClass} flex items-center gap-1">
               <i class="fas ${icon} text-[8px]"></i> ${esc(st.status)}
             </span>
           </div>
-          <h4 class="text-xs font-bold text-slate-900 dark:text-white mb-1.5 leading-snug">${esc(st.title)}</h4>
+          <h4 class="text-xs font-bold text-slate-900 dark:text-white mb-1.5 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">${esc(st.title)}</h4>
           <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-2 leading-relaxed line-clamp-3">${esc(st.details)}</p>
         </div>
         <div class="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] space-y-1">
@@ -763,6 +783,39 @@ function renderWorkingMechanismPipeline() {
     `;
   }).join('');
 }
+
+window.selectMechanismStage = function (stageNumber) {
+  if (!calState.data || !calState.data.mechanism) return;
+  const stages = calState.data.mechanism.stages || [];
+  const st = stages.find(s => s.stageNumber === stageNumber) || stages[stageNumber - 1];
+  if (!st) return;
+
+  calState.selectedStage = stageNumber;
+  renderWorkingMechanismPipeline();
+
+  const match = (st.period || '').match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s*(\d{4})?/i);
+  if (match) {
+    const monthMap = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    const mIdx = monthMap[match[1].toLowerCase()];
+    const day = Number(match[2]);
+    const year = match[3] ? Number(match[3]) : (mIdx >= 7 ? 2026 : 2027);
+    const dateStr = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    calState.currentMonth = new Date(year, mIdx, 1);
+    calState.selectedDate = dateStr;
+    renderCalendarMonthGrid();
+    window.selectCalendarDate(dateStr);
+  }
+
+  const stageEl = $('calDayMechStage');
+  const notesEl = $('calDayMechNotes');
+  if (stageEl) stageEl.textContent = `Stage ${st.stageNumber}: ${st.title}`;
+  if (notesEl) {
+    notesEl.innerHTML = `<strong>${esc(st.category || 'Phase')}</strong> · ${esc(st.period)}<br><span class="text-indigo-600 dark:text-indigo-400 font-bold">${esc(st.instructionalDays || '')} · ${esc(st.targetSyllabus || '')}</span><br>${esc(st.details || '')}${st.guidelines ? `<br><em class="text-[10px] text-slate-400 mt-1 block">📌 ${esc(st.guidelines)}</em>` : ''}`;
+  }
+
+  toast(`Viewing Stage ${st.stageNumber}: ${st.title}`, 'info');
+};
 
 window.toggleMechanismView = function () {
   calState.compactMechanism = !calState.compactMechanism;
@@ -1102,26 +1155,34 @@ function renderUpcomingDeadlines() {
   const container = $('calUpcomingDeadlinesList');
   if (!container || !calState.data) return;
 
+  const allEvents = calState.data.events || [];
   const now = new Date();
-  const events = (calState.data.events || []).filter(e => {
-    return (e.type === 'exam' || e.type === 'assignment') && new Date(e.date) >= now;
-  }).slice(0, 4);
+  let events = allEvents.filter(e => {
+    return (e.type === 'exam' || e.type === 'assignment') && new Date(e.date + 'T23:59:59') >= now;
+  });
 
   if (!events.length) {
+    events = allEvents.filter(e => e.type === 'exam' || e.type === 'assignment');
+  }
+  const slice = events.slice(0, 5);
+
+  if (!slice.length) {
     container.innerHTML = '<p class="text-[11px] text-slate-400 italic">No impending exam deadlines.</p>';
     return;
   }
 
-  container.innerHTML = events.map(e => {
-    const diff = Math.max(0, Math.ceil((new Date(e.date) - now) / (1000 * 60 * 60 * 24)));
+  container.innerHTML = slice.map(e => {
+    const diff = Math.ceil((new Date(e.date) - now) / (1000 * 60 * 60 * 24));
+    const badgeText = diff > 0 ? `${diff}d left` : (diff === 0 ? 'Today' : `${Math.abs(diff)}d ago`);
+    const isUrgent = diff >= 0 && diff <= 14;
     return `
-      <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+      <div class="cursor-pointer flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-indigo-400 transition text-xs" onclick="window.openAcademicEventModal('${e.id}')">
         <div class="min-w-0 pr-2">
           <p class="font-bold text-slate-800 dark:text-white truncate text-[11px]">${esc(e.title)}</p>
-          <p class="text-[10px] text-slate-400">${esc(e.date)}</p>
+          <p class="text-[10px] text-slate-400">${esc(e.date)} · ${esc(e.weight || '')}</p>
         </div>
-        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${diff <= 7 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'} shrink-0">
-          ${diff}d left
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${isUrgent ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'} shrink-0">
+          ${badgeText}
         </span>
       </div>
     `;
